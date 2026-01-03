@@ -1,74 +1,18 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <title>Oglądasz - PL YT</title>
-    <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; }
-        .player-box { max-width: 900px; margin: auto; }
-        video { width: 100%; border-radius: 10px; background: #000; }
-        .comm-section { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-top: 20px; }
-        input { width: 70%; padding: 10px; background: #000; color: white; border: 1px solid #444; }
-        .btn { background: white; color: black; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; }
-    </style>
-</head>
-<body>
+// Przykład dla przycisku Like w video.html
+document.getElementById('likeBtn').onclick = async () => {
+    if (!auth.currentUser) {
+        alert("Zaloguj się, aby polubić ten film!");
+        // Opcjonalnie: przekieruj do strony głównej lub otwórz modal logowania
+        return;
+    }
+    // ... Twój kod dodawania lajka (updateDoc)
+};
 
-<div class="player-box">
-    <button onclick="history.back()" style="background:none; color:white; border:1px solid #444; padding:5px 15px; cursor:pointer; margin-bottom:10px;">⬅ Powrót</button>
-    <video id="player" controls autoplay></video>
-    <h1 id="vTitle">Tytuł filmu</h1>
-    <hr color="#333">
-    
-    <div class="comm-section">
-        <h3>Komentarze</h3>
-        <input type="text" id="cInput" placeholder="Napisz coś...">
-        <button class="btn" id="cBtn">DODAJ</button>
-        <div id="cList" style="margin-top: 20px;"></div>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-        authDomain: "polski-youtub2.firebaseapp.com",
-        projectId: "polski-youtub2",
-        storageBucket: "polski-youtub2.firebasestorage.app",
-        messagingSenderId: "325129789226",
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-        measurementId: "G-B5M3F5J713"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const params = new URLSearchParams(window.location.search);
-    const vId = params.get('id');
-    document.getElementById('player').src = params.get('url');
-    document.getElementById('vTitle').innerText = params.get('title');
-
-    document.getElementById('cBtn').onclick = async () => {
-        const text = document.getElementById('cInput').value;
-        if(!text) return;
-        await addDoc(collection(db, "comments"), { videoId: vId, text: text, createdAt: new Date() });
-        document.getElementById('cInput').value = "";
-    };
-
-    const q = query(collection(db, "comments"), where("videoId", "==", vId), orderBy("createdAt", "desc"));
-    onSnapshot(q, (snap) => {
-        const list = document.getElementById('cList');
-        list.innerHTML = "";
-        snap.forEach(doc => {
-            const d = doc.data();
-            const div = document.createElement('div');
-            div.style = "padding: 10px 0; border-bottom: 1px solid #333;";
-            div.innerHTML = `<b>Użytkownik:</b> ${d.text}`;
-            list.appendChild(div);
-        });
-    });
-</script>
-</body>
-</html>
+// Przykład dla Komentarzy
+window.addComment = async () => {
+    if (!auth.currentUser) {
+        alert("Tylko zalogowani użytkownicy mogą komentować.");
+        return;
+    }
+    // ... Twój kod dodawania komentarza (addDoc)
+};
