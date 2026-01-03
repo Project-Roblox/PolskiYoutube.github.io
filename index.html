@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoPlatform - Next Generation</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <i class="material-icons menu-icon">menu</i>
+        <div class="logo" onclick="nav('home')"><span class="red-box">YT</span> <span>Studio</span></div>
+    </div>
+    <div class="header-mid">
+        <input type="text" placeholder="Szukaj filmów, shortsów, twórców...">
+        <button class="search-btn"><i class="material-icons">search</i></button>
+    </div>
+    <div class="header-right">
+        <button class="icon-btn" onclick="nav('upload')"><i class="material-icons">video_call</i></button>
+        <button class="login-btn" id="userStatus" onclick="nav('login')">ZALOGUJ SIĘ</button>
+    </div>
+</header>
+
+<main>
+    <aside class="sidebar">
+        <div class="nav-item active" onclick="nav('home')"><i class="material-icons">home</i> Główna</div>
+        <div class="nav-item" onclick="nav('shorts')"><i class="material-icons">bolt</i> Shorts</div>
+        <div class="nav-item"><i class="material-icons">subscriptions</i> Subskrypcje</div>
+        <hr>
+        <div class="nav-item admin-only" id="adminLink" onclick="nav('admin')"><i class="material-icons">admin_panel_settings</i> Panel Admina</div>
+    </aside>
+
+    <section class="content">
+        <div id="view-home" class="page active">
+            <h2>Polecane</h2>
+            <div class="video-grid" id="main-grid"></div>
+        </div>
+
+        <div id="view-shorts" class="page">
+            <div class="shorts-wrapper" id="shorts-container"></div>
+        </div>
+
+        <div id="view-login" class="page">
+            <div class="auth-card">
+                <h2>Zaloguj się</h2>
+                <input type="text" id="email" placeholder="Nazwa użytkownika / Email">
+                <input type="password" id="pass" placeholder="Hasło">
+                <button class="main-btn" onclick="auth()">Kontynuuj</button>
+            </div>
+        </div>
+
+        <div id="view-upload" class="page">
+            <div class="auth-card">
+                <h2>Opublikuj treść</h2>
+                <select id="up-type">
+                    <option value="video">Film (Poziomy)</option>
+                    <option value="short">Short (Pionowy)</option>
+                </select>
+                <input type="text" id="up-title" placeholder="Tytuł">
+                <input type="file" id="up-file" accept="video/*">
+                <button class="main-btn" onclick="upload()">Opublikuj</button>
+            </div>
+        </div>
+
+        <div id="view-admin" class="page">
+            <h2>🛡️ Zarządzanie Systemem</h2>
+            <div class="admin-panel">
+                <div class="tool">
+                    <h3>Moderacja Kont</h3>
+                    <input type="text" id="target" placeholder="Nick użytkownika">
+                    <button onclick="adm('verify')">Nadaj Weryfikację</button>
+                    <button class="danger" onclick="adm('ban')">Zbanuj / Usuń</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
