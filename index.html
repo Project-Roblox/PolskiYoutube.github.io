@@ -1,86 +1,147 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Polski YouTube - Główna</title>
+    <style>
+        body { background: #0f0f0f; color: white; font-family: 'Roboto', sans-serif; margin: 0; }
+        header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 20px; font-weight: bold; cursor: pointer; }
+        .logo span { background: red; padding: 2px 6px; border-radius: 4px; }
+        
+        .btn { background: #272727; color: white; border: none; padding: 8px 16px; border-radius: 18px; cursor: pointer; font-weight: 500; }
+        .btn-blue { background: #3ea6ff; color: #0f0f0f; font-weight: bold; }
+
+        /* Sekcje */
+        .container { padding: 20px; max-width: 1400px; margin: auto; }
+        .section-title { margin: 20px 0; font-size: 20px; }
+
+        /* Filmy - Duża siatka */
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .v-card { cursor: pointer; border-radius: 12px; transition: 0.2s; }
+        .v-card:hover { transform: scale(1.02); }
+        .thumbnail { width: 100%; aspect-ratio: 16/9; background: #1a1a1a; border-radius: 12px; object-fit: cover; }
+        
+        /* Shortsy - Poziomy pasek */
+        .shorts-wrapper { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; }
+        .short-card { width: 180px; flex-shrink: 0; aspect-ratio: 9/16; position: relative; cursor: pointer; }
+        .short-card video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; background: #1a1a1a; }
+
+        /* Modal logowania */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
 <header>
     <div class="logo" onclick="location.reload()"><span>PL</span> YouTube</div>
-    
-    <div id="auth-area">
-        <button id="loginBtn" class="btn" onclick="openAuthModal()">ZALOGUJ SIĘ</button>
-        
-        <div id="userPanel" style="display:none; align-items: center; gap: 15px;">
-            <span id="userEmail" style="font-size: 14px; color: #aaa;"></span>
-            <button class="btn-add" onclick="toggleModal(true)">+ DODAJ FILM</button>
-            <button id="logoutBtn" class="btn" style="background:#333;" onclick="handleLogout()">WYLOGUJ</button>
+    <div id="nav-actions">
+        <button id="loginBtn" class="btn btn-blue">ZALOGUJ SIĘ</button>
+        <div id="userMenu" style="display:none;">
+            <button class="btn" onclick="openUploadModal()">+ DODAJ</button>
+            <button class="btn" onclick="handleLogout()" style="margin-left:10px;">WYLOGUJ</button>
         </div>
     </div>
 </header>
-</header>
+
+<div class="container">
+    <h3 class="section-title">📱 Shortsy</h3>
+    <div class="shorts-wrapper" id="shortsList"></div>
+
+    <h3 class="section-title">🎥 Polecane filmy</h3>
+    <div class="video-grid" id="videoList"></div>
+</div>
 
 <div id="authModal" class="modal">
     <div class="modal-content">
         <h2 id="authTitle">Logowanie</h2>
         <input type="email" id="email" placeholder="E-mail">
         <input type="password" id="password" placeholder="Hasło">
-        <button class="publish-btn" id="submitAuth">Zatwierdź</button>
-        <p id="toggleAuth" style="cursor:pointer; font-size:12px; margin-top:10px; color:#3ea6ff;">Nie masz konta? Zarejestruj się</p>
-        <button onclick="document.getElementById('authModal').style.display='none'" style="border:none; background:none; color:gray; cursor:pointer;">Anuluj</button>
+        <button class="btn btn-blue" style="width:100%; margin-top:10px;" id="authSubmit">DALEJ</button>
+        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; font-size:12px; margin-top:15px;">Nie masz konta? Zarejestruj się</p>
+        <button onclick="closeModals()" style="background:none; color:gray; border:none; margin-top:10px; cursor:pointer;">Zamknij</button>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    // ... reszta importów (firestore)
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { /* TWÓJ CONFIG */ };
+    const firebaseConfig = { /* Wklej swój config tutaj */ };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
 
+    // --- LOGIKA AUTH ---
     const authModal = document.getElementById('authModal');
-    let isRegisterMode = false;
-
-    // Przełączanie Rejestracja / Logowanie
-    document.getElementById('toggleAuth').onclick = () => {
-        isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').innerText = isRegisterMode ? "Rejestracja" : "Logowanie";
-        document.getElementById('toggleAuth').innerText = isRegisterMode ? "Masz już konto? Zaloguj się" : "Nie masz konta? Zarejestruj się";
-    };
-
-    // Obsługa przycisku w modalach
-    document.getElementById('submitAuth').onclick = async () => {
-        const mail = document.getElementById('email').value;
-        const pass = document.getElementById('password').value;
-
-        try {
-            if (isRegisterMode) {
-                await createUserWithEmailAndPassword(auth, mail, pass);
-                alert("Konto utworzone!");
-            } else {
-                await signInWithEmailAndPassword(auth, mail, pass);
-            }
-            authModal.style.display = 'none';
-        } catch (e) {
-            alert("Błąd: " + e.message);
-        }
-    };
-
-    // MONITOROWANIE STANU LOGOWANIA
-    onAuthStateChanged(auth, (user) => {
-        const loginBtn = document.getElementById('loginBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const uploadBtn = document.getElementById('mainUploadBtn');
-
-        if (user) {
-            // Zalogowany
-            loginBtn.style.display = 'none';
-            logoutBtn.style.display = 'inline-block';
-            uploadBtn.style.display = 'inline-block';
-            console.log("Zalogowano jako:", user.email);
-        } else {
-            // Wylogowany
-            loginBtn.style.display = 'inline-block';
-            logoutBtn.style.display = 'none';
-            uploadBtn.style.display = 'none';
-        }
-    });
+    let registerMode = false;
 
     document.getElementById('loginBtn').onclick = () => authModal.style.display = 'flex';
-    document.getElementById('logoutBtn').onclick = () => signOut(auth);
+    window.closeModals = () => authModal.style.display = 'none';
+
+    document.getElementById('toggleAuth').onclick = () => {
+        registerMode = !registerMode;
+        document.getElementById('authTitle').innerText = registerMode ? "Rejestracja" : "Logowanie";
+        document.getElementById('toggleAuth').innerText = registerMode ? "Masz konto? Zaloguj się" : "Nie masz konta? Załóż je";
+    };
+
+    document.getElementById('authSubmit').onclick = async () => {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        try {
+            if(registerMode) await createUserWithEmailAndPassword(auth, email, pass);
+            else await signInWithEmailAndPassword(auth, email, pass);
+            closeModals();
+        } catch(e) { alert("Błąd: " + e.message); }
+    };
+
+    window.handleLogout = () => signOut(auth);
+
+    onAuthStateChanged(auth, (user) => {
+        document.getElementById('loginBtn').style.display = user ? 'none' : 'block';
+        document.getElementById('userMenu').style.display = user ? 'block' : 'none';
+    });
+
+    // --- ŁADOWANIE TREŚCI ---
+    async function loadContent() {
+        const vList = document.getElementById('videoList');
+        const sList = document.getElementById('shortsList');
+        
+        const q = query(collection(db, "content"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        
+        vList.innerHTML = ""; sList.innerHTML = "";
+        
+        snap.forEach(doc => {
+            const d = doc.data();
+            const id = doc.id;
+            
+            if(d.type === 'short') {
+                const sCard = document.createElement('div');
+                sCard.className = 'short-card';
+                sCard.innerHTML = `<video src="${d.url}#t=0.1"></video>`;
+                sCard.onclick = () => location.href = `video.html?id=${id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}&type=short`;
+                sList.appendChild(sCard);
+            } else {
+                const vCard = document.createElement('div');
+                vCard.className = 'v-card';
+                vCard.innerHTML = `
+                    <video class="thumbnail" src="${d.url}#t=0.1"></video>
+                    <div style="padding:10px;">
+                        <div style="font-weight:bold;">${d.title}</div>
+                        <div style="font-size:12px; color:#aaa;">${d.author || 'Anonim'}</div>
+                    </div>
+                `;
+                vCard.onclick = () => location.href = `video.html?id=${id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}`;
+                vList.appendChild(vCard);
+            }
+        });
+    }
+
+    loadContent();
 </script>
+</body>
+</html>
