@@ -2,29 +2,28 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Oglądasz - Polski YT</title>
+    <title>Oglądasz - PL YT</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
-        video { width: 100%; border-radius: 12px; background: black; }
-        .comm-box { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-top: 20px; }
-        .comment { border-bottom: 1px solid #333; padding: 10px 0; }
-        input { background: #000; color: white; border: 1px solid #444; padding: 10px; width: 70%; }
-        button { padding: 10px 20px; background: white; cursor: pointer; font-weight: bold; }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; }
+        .player-box { max-width: 900px; margin: auto; }
+        video { width: 100%; border-radius: 10px; background: #000; }
+        .comm-section { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        input { width: 70%; padding: 10px; background: #000; color: white; border: 1px solid #444; }
+        .btn { background: white; color: black; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <button onclick="window.location.href='index.html'">⬅ POWRÓT</button>
+<div class="player-box">
+    <button onclick="history.back()" style="background:none; color:white; border:1px solid #444; padding:5px 15px; cursor:pointer; margin-bottom:10px;">⬅ Powrót</button>
     <video id="player" controls autoplay></video>
-    <h1 id="vTitle">Tytuł</h1>
-    <hr>
+    <h1 id="vTitle">Tytuł filmu</h1>
+    <hr color="#333">
     
-    <div class="comm-box">
+    <div class="comm-section">
         <h3>Komentarze</h3>
-        <input type="text" id="cInput" placeholder="Dodaj komentarz...">
-        <button id="sendComm">WYŚLIJ</button>
+        <input type="text" id="cInput" placeholder="Napisz coś...">
+        <button class="btn" id="cBtn">DODAJ</button>
         <div id="cList" style="margin-top: 20px;"></div>
     </div>
 </div>
@@ -48,26 +47,16 @@
 
     const params = new URLSearchParams(window.location.search);
     const vId = params.get('id');
-    const vUrl = params.get('url');
-    const vTitle = params.get('title');
+    document.getElementById('player').src = params.get('url');
+    document.getElementById('vTitle').innerText = params.get('title');
 
-    document.getElementById('player').src = vUrl;
-    document.getElementById('vTitle').innerText = vTitle;
-
-    // Wysyłanie komentarza
-    document.getElementById('sendComm').onclick = async () => {
+    document.getElementById('cBtn').onclick = async () => {
         const text = document.getElementById('cInput').value;
         if(!text) return;
-
-        await addDoc(collection(db, "comments"), {
-            videoId: vId,
-            text: text,
-            createdAt: new Date()
-        });
+        await addDoc(collection(db, "comments"), { videoId: vId, text: text, createdAt: new Date() });
         document.getElementById('cInput').value = "";
     };
 
-    // Pobieranie komentarzy "na żywo"
     const q = query(collection(db, "comments"), where("videoId", "==", vId), orderBy("createdAt", "desc"));
     onSnapshot(q, (snap) => {
         const list = document.getElementById('cList');
@@ -75,7 +64,7 @@
         snap.forEach(doc => {
             const d = doc.data();
             const div = document.createElement('div');
-            div.className = 'comment';
+            div.style = "padding: 10px 0; border-bottom: 1px solid #333;";
             div.innerHTML = `<b>Użytkownik:</b> ${d.text}`;
             list.appendChild(div);
         });
