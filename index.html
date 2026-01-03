@@ -2,55 +2,44 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Polski YouTube - Główna</title>
+    <title>Polski YouTube - Naprawiony</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: 'Roboto', sans-serif; margin: 0; }
-        header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; position: sticky; top: 0; z-index: 100; }
-        .logo { font-size: 20px; font-weight: bold; cursor: pointer; }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
+        header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 20px; font-weight: bold; cursor: pointer; color: white; text-decoration: none; }
         .logo span { background: red; padding: 2px 6px; border-radius: 4px; }
-        
-        .btn { background: #272727; color: white; border: none; padding: 8px 16px; border-radius: 18px; cursor: pointer; font-weight: 500; }
-        .btn-blue { background: #3ea6ff; color: #0f0f0f; font-weight: bold; }
-
-        /* Sekcje */
-        .container { padding: 20px; max-width: 1400px; margin: auto; }
-        .section-title { margin: 20px 0; font-size: 20px; }
-
-        /* Filmy - Duża siatka */
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-        .v-card { cursor: pointer; border-radius: 12px; transition: 0.2s; }
-        .v-card:hover { transform: scale(1.02); }
-        .thumbnail { width: 100%; aspect-ratio: 16/9; background: #1a1a1a; border-radius: 12px; object-fit: cover; }
-        
-        /* Shortsy - Poziomy pasek */
-        .shorts-wrapper { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; }
-        .short-card { width: 180px; flex-shrink: 0; aspect-ratio: 9/16; position: relative; cursor: pointer; }
-        .short-card video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; background: #1a1a1a; }
-
-        /* Modal logowania */
+        .btn { background: #272727; color: white; border: none; padding: 8px 16px; border-radius: 18px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: #3ea6ff; color: #0f0f0f; }
+        .container { padding: 20px; max-width: 1200px; margin: auto; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .v-card { cursor: pointer; border-radius: 12px; background: #1a1a1a; overflow: hidden; }
+        .thumbnail { width: 100%; aspect-ratio: 16/9; background: #000; object-fit: cover; }
+        .shorts-wrapper { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; }
+        .short-card { width: 150px; flex-shrink: 0; aspect-ratio: 9/16; cursor: pointer; }
+        .short-card video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+        .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo" onclick="location.reload()"><span>PL</span> YouTube</div>
-    <div id="nav-actions">
+    <a href="index.html" class="logo"><span>PL</span> YouTube</a>
+    <div>
         <button id="loginBtn" class="btn btn-blue">ZALOGUJ SIĘ</button>
         <div id="userMenu" style="display:none;">
-            <button class="btn" onclick="openUploadModal()">+ DODAJ</button>
-            <button class="btn" onclick="handleLogout()" style="margin-left:10px;">WYLOGUJ</button>
+            <button class="btn" id="openUpBtn">+ DODAJ</button>
+            <button class="btn" id="logoutBtn" style="margin-left:10px; background:#444;">WYLOGUJ</button>
         </div>
     </div>
 </header>
 
 <div class="container">
-    <h3 class="section-title">📱 Shortsy</h3>
+    <h3>📱 Shortsy</h3>
     <div class="shorts-wrapper" id="shortsList"></div>
-
-    <h3 class="section-title">🎥 Polecane filmy</h3>
+    <hr color="#333">
+    <h3>🎥 Filmy</h3>
     <div class="video-grid" id="videoList"></div>
 </div>
 
@@ -59,28 +48,54 @@
         <h2 id="authTitle">Logowanie</h2>
         <input type="email" id="email" placeholder="E-mail">
         <input type="password" id="password" placeholder="Hasło">
-        <button class="btn btn-blue" style="width:100%; margin-top:10px;" id="authSubmit">DALEJ</button>
-        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; font-size:12px; margin-top:15px;">Nie masz konta? Zarejestruj się</p>
-        <button onclick="closeModals()" style="background:none; color:gray; border:none; margin-top:10px; cursor:pointer;">Zamknij</button>
+        <button class="btn btn-blue" style="width:100%" id="authSubmit">DALEJ</button>
+        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; font-size:12px; margin-top:15px; text-align:center;">Nie masz konta? Zarejestruj się</p>
+        <button id="closeAuth" style="background:none; color:gray; border:none; width:100%; margin-top:10px; cursor:pointer;">Zamknij</button>
+    </div>
+</div>
+
+<div id="upModal" class="modal">
+    <div class="modal-content">
+        <h2>Dodaj treść</h2>
+        <input type="text" id="vTitle" placeholder="Tytuł">
+        <input type="text" id="vUrl" placeholder="Link .mp4 (Discord/Catbox)">
+        <select id="vType">
+            <option value="video">Zwykły Film</option>
+            <option value="short">Short (Pionowy)</option>
+        </select>
+        <button class="btn btn-blue" style="width:100%" id="publishBtn">PUBLIKUJ</button>
+        <button id="closeUp" style="background:none; color:gray; border:none; width:100%; margin-top:10px; cursor:pointer;">Anuluj</button>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { /* Wklej swój config tutaj */ };
+    const firebaseConfig = {
+        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
+        authDomain: "polski-youtub2.firebaseapp.com",
+        projectId: "polski-youtub2",
+        storageBucket: "polski-youtub2.firebasestorage.app",
+        messagingSenderId: "325129789226",
+        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
+        measurementId: "G-B5M3F5J713"
+    };
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // --- LOGIKA AUTH ---
+    // --- OBSŁUGA MODALI (Naprawione powiązania) ---
     const authModal = document.getElementById('authModal');
+    const upModal = document.getElementById('upModal');
     let registerMode = false;
 
     document.getElementById('loginBtn').onclick = () => authModal.style.display = 'flex';
-    window.closeModals = () => authModal.style.display = 'none';
+    document.getElementById('closeAuth').onclick = () => authModal.style.display = 'none';
+    document.getElementById('openUpBtn').onclick = () => upModal.style.display = 'flex';
+    document.getElementById('closeUp').onclick = () => upModal.style.display = 'none';
 
     document.getElementById('toggleAuth').onclick = () => {
         registerMode = !registerMode;
@@ -88,60 +103,70 @@
         document.getElementById('toggleAuth').innerText = registerMode ? "Masz konto? Zaloguj się" : "Nie masz konta? Załóż je";
     };
 
+    // --- LOGOWANIE / REJESTRACJA ---
     document.getElementById('authSubmit').onclick = async () => {
         const email = document.getElementById('email').value;
         const pass = document.getElementById('password').value;
         try {
             if(registerMode) await createUserWithEmailAndPassword(auth, email, pass);
             else await signInWithEmailAndPassword(auth, email, pass);
-            closeModals();
+            authModal.style.display = 'none';
         } catch(e) { alert("Błąd: " + e.message); }
     };
 
-    window.handleLogout = () => signOut(auth);
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
 
     onAuthStateChanged(auth, (user) => {
         document.getElementById('loginBtn').style.display = user ? 'none' : 'block';
-        document.getElementById('userMenu').style.display = user ? 'block' : 'none';
+        document.getElementById('userMenu').style.display = user ? 'flex' : 'none';
     });
 
+    // --- PUBLIKOWANIE ---
+    document.getElementById('publishBtn').onclick = async () => {
+        const title = document.getElementById('vTitle').value;
+        const url = document.getElementById('vUrl').value;
+        const type = document.getElementById('vType').value;
+
+        if(!title || !url) return alert("Uzupełnij dane!");
+
+        await addDoc(collection(db, "content"), {
+            title: title,
+            url: url,
+            type: type,
+            author: auth.currentUser.email,
+            createdAt: new Date(),
+            likes: 0
+        });
+        location.reload();
+    };
+
     // --- ŁADOWANIE TREŚCI ---
-    async function loadContent() {
+    async function load() {
         const vList = document.getElementById('videoList');
         const sList = document.getElementById('shortsList');
-        
         const q = query(collection(db, "content"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         
         vList.innerHTML = ""; sList.innerHTML = "";
-        
         snap.forEach(doc => {
             const d = doc.data();
             const id = doc.id;
-            
             if(d.type === 'short') {
-                const sCard = document.createElement('div');
-                sCard.className = 'short-card';
-                sCard.innerHTML = `<video src="${d.url}#t=0.1"></video>`;
-                sCard.onclick = () => location.href = `video.html?id=${id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}&type=short`;
-                sList.appendChild(sCard);
+                const div = document.createElement('div');
+                div.className = 'short-card';
+                div.innerHTML = `<video src="${d.url}#t=0.1"></video>`;
+                div.onclick = () => location.href = `video.html?id=${id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}&type=short`;
+                sList.appendChild(div);
             } else {
-                const vCard = document.createElement('div');
-                vCard.className = 'v-card';
-                vCard.innerHTML = `
-                    <video class="thumbnail" src="${d.url}#t=0.1"></video>
-                    <div style="padding:10px;">
-                        <div style="font-weight:bold;">${d.title}</div>
-                        <div style="font-size:12px; color:#aaa;">${d.author || 'Anonim'}</div>
-                    </div>
-                `;
-                vCard.onclick = () => location.href = `video.html?id=${id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}`;
-                vList.appendChild(vCard);
+                const div = document.createElement('div');
+                div.className = 'v-card';
+                div.innerHTML = `<video class="thumbnail" src="${d.url}#t=0.1"></video><div style="padding:10px"><b>${d.title}</b><br><small style="color:#aaa">${d.author}</small></div>`;
+                div.onclick = () => location.href = `video.html?id=${id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}`;
+                vList.appendChild(div);
             }
         });
     }
-
-    loadContent();
+    load();
 </script>
 </body>
 </html>
