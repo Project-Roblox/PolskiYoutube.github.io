@@ -2,46 +2,42 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Polski YT - Strona Główna</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Polski YT - Home</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: 'Roboto', sans-serif; margin: 0; }
-        header { height: 56px; background: #0f0f0f; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; position: sticky; top: 0; }
-        .logo { font-weight: bold; font-size: 20px; color: white; text-decoration: none; }
-        .logo span { background: red; padding: 2px 6px; border-radius: 4px; }
-        .upload-section { background: #1e1e1e; padding: 20px; margin: 20px; border-radius: 12px; border: 1px dashed #444; }
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px; }
-        .v-card { cursor: pointer; background: #272727; border-radius: 12px; overflow: hidden; padding-bottom: 10px; }
-        .v-card video { width: 100%; aspect-ratio: 16/9; background: black; }
-        .v-card h4 { margin: 10px; font-size: 16px; }
-        input, button { padding: 10px; margin: 5px 0; border-radius: 5px; border: none; }
-        button { background: #3ea6ff; color: black; font-weight: bold; cursor: pointer; }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
+        header { padding: 10px 20px; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px; }
+        .card { background: #1e1e1e; border-radius: 10px; cursor: pointer; overflow: hidden; }
+        .card video { width: 100%; aspect-ratio: 16/9; background: #000; }
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; }
+        .m-box { background:#222; padding:30px; border-radius:10px; width:400px; }
+        input { width:100%; padding:10px; margin:10px 0; background:#000; border:1px solid #444; color:white; }
+        .btn { background: red; color:white; border:none; padding:10px 20px; cursor:pointer; font-weight:bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <a href="index.html" class="logo"><span>PL</span> YouTube</a>
-    <button onclick="document.getElementById('upload-box').scrollIntoView()">+ DODAJ FILM</button>
+    <div style="font-size: 24px; font-weight: bold; color: red;">PL YT</div>
+    <button class="btn" onclick="document.getElementById('upModal').style.display='flex'">+ DODAJ FILM</button>
 </header>
 
-<div class="upload-section" id="upload-box">
-    <h3>Prześlij film na serwer</h3>
-    <input type="text" id="vTitle" placeholder="Tytuł filmu" style="width: 300px;"><br>
-    <input type="file" id="vFile" accept="video/*"><br>
-    <button id="btnPublish">OPUBLIKUJ DLA WSZYSTKICH</button>
-    <p id="upStatus" style="font-size: 12px; color: #aaa;"></p>
-</div>
+<div class="grid" id="mainGrid"></div>
 
-<div class="video-grid" id="mainGrid">
+<div id="upModal" class="modal">
+    <div class="m-box">
+        <h3>Dodaj Film (Wklej link)</h3>
+        <input type="text" id="vTitle" placeholder="Tytuł filmu">
+        <input type="text" id="vUrl" placeholder="Link do pliku .mp4 (np. z Discorda)">
+        <button class="btn" onclick="uploadVideo()">OPUBLIKUJ</button>
+        <button onclick="document.getElementById('upModal').style.display='none'" style="background:none; color:gray; border:none; cursor:pointer;">Zamknij</button>
     </div>
+</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-    // TWÓJ CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
         authDomain: "polski-youtub2.firebaseapp.com",
@@ -54,63 +50,35 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const storage = getStorage(app);
 
-    // ŁADOWANIE FILMÓW
-    async function loadVideos() {
+    async function load() {
         const grid = document.getElementById('mainGrid');
-        grid.innerHTML = "Pobieranie filmów...";
+        grid.innerHTML = "";
         const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
-        grid.innerHTML = "";
-
         snap.forEach(doc => {
-            const data = doc.data();
+            const d = doc.data();
             const card = document.createElement('div');
-            card.className = 'v-card';
-            card.innerHTML = `
-                <video src="${data.url}#t=0.5" preload="metadata"></video>
-                <h4>${data.title}</h4>
-            `;
-            card.onclick = () => {
-                window.location.href = `video.html?id=${doc.id}&url=${encodeURIComponent(data.url)}&title=${encodeURIComponent(data.title)}`;
-            };
+            card.className = 'card';
+            card.innerHTML = `<video src="${d.url}"></video><div style="padding:10px"><b>${d.title}</b></div>`;
+            card.onclick = () => window.location.href = `video.html?id=${doc.id}&url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(d.title)}`;
             grid.appendChild(card);
         });
     }
 
-    // WRZUCANIE FILMU
-    document.getElementById('btnPublish').onclick = async () => {
-        const file = document.getElementById('vFile').files[0];
+    window.uploadVideo = async () => {
         const title = document.getElementById('vTitle').value;
-        const status = document.getElementById('upStatus');
+        const url = document.getElementById('vUrl').value;
+        if(!title || !url) return alert("Uzupełnij pola!");
 
-        if(!file || !title) return alert("Wypełnij dane!");
-
-        status.innerText = "Trwa wysyłanie na serwer Google... Nie zamykaj okna.";
-        document.getElementById('btnPublish').disabled = true;
-
-        try {
-            const fileRef = ref(storage, 'movies/' + Date.now() + "_" + file.name);
-            await uploadBytes(fileRef, file);
-            const url = await getDownloadURL(fileRef);
-
-            await addDoc(collection(db, "videos"), {
-                title: title,
-                url: url,
-                createdAt: new Date()
-            });
-
-            status.innerText = "SUKCES! Film dodany.";
-            loadVideos();
-        } catch(e) {
-            status.innerText = "Błąd: " + e.message;
-        } finally {
-            document.getElementById('btnPublish').disabled = false;
-        }
-    };
-
-    loadVideos();
+        await addDoc(collection(db, "videos"), {
+            title: title,
+            url: url,
+            createdAt: new Date()
+        });
+        location.reload();
+    }
+    load();
 </script>
 </body>
 </html>
