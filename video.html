@@ -2,68 +2,84 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Odtwarzacz - YouTube PL</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <title>Oglądasz - Polski YT</title>
+    <style>
+        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        video { width: 100%; border-radius: 12px; background: black; }
+        .comm-box { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .comment { border-bottom: 1px solid #333; padding: 10px 0; }
+        input { background: #000; color: white; border: 1px solid #444; padding: 10px; width: 70%; }
+        button { padding: 10px 20px; background: white; cursor: pointer; font-weight: bold; }
+    </style>
 </head>
-<body class="video-page">
-    <header> </header>
+<body>
 
-    <main class="video-container">
-        <div class="player-section">
-            <video id="main-video" controls autoplay></video>
-            <h1 id="v-title">Tytuł filmu</h1>
-            <div class="video-stats">
-                <span id="v-author">Autor</span>
-                <div class="actions">
-                    <button onclick="like()"><i class="material-icons">thumb_up</i> <span id="like-count">0</span></button>
-                    <button><i class="material-icons">thumb_down</i></button>
-                    <button><i class="material-icons">share</i> Udostępnij</button>
-                </div>
-            </div>
-            <hr>
-            <div class="comments-section">
-                <h3>Komentarze</h3>
-                <div class="add-comment">
-                    <input type="text" id="comment-input" placeholder="Dodaj publiczny komentarz...">
-                    <button onclick="postComment()">Skomentuj</button>
-                </div>
-                <div id="comments-list"></div>
-            </div>
-        </div>
-    </main>
+<div class="container">
+    <button onclick="window.location.href='index.html'">⬅ POWRÓT</button>
+    <video id="player" controls autoplay></video>
+    <h1 id="vTitle">Tytuł</h1>
+    <hr>
+    
+    <div class="comm-box">
+        <h3>Komentarze</h3>
+        <input type="text" id="cInput" placeholder="Dodaj komentarz...">
+        <button id="sendComm">WYŚLIJ</button>
+        <div id="cList" style="margin-top: 20px;"></div>
+    </div>
+</div>
 
-    <script>
-        const WH = "TWÓJ_WEBHOOK_URL";
-        // Pobieranie danych z linku (?title=Nazwa&url=blob...)
-        const params = new URLSearchParams(window.location.search);
-        document.getElementById('main-video').src = params.get('url');
-        document.getElementById('v-title').innerText = params.get('title');
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        function like() {
-            const count = document.getElementById('like-count');
-            count.innerText = parseInt(count.innerText) + 1;
-            report("👍 LIKE", `Ktoś polubił film: **${params.get('title')}**`);
-        }
+    const firebaseConfig = {
+        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
+        authDomain: "polski-youtub2.firebaseapp.com",
+        projectId: "polski-youtub2",
+        storageBucket: "polski-youtub2.firebasestorage.app",
+        messagingSenderId: "325129789226",
+        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
+        measurementId: "G-B5M3F5J713"
+    };
 
-        function postComment() {
-            const input = document.getElementById('comment-input');
-            if(!input.value) return;
-            
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const vId = params.get('id');
+    const vUrl = params.get('url');
+    const vTitle = params.get('title');
+
+    document.getElementById('player').src = vUrl;
+    document.getElementById('vTitle').innerText = vTitle;
+
+    // Wysyłanie komentarza
+    document.getElementById('sendComm').onclick = async () => {
+        const text = document.getElementById('cInput').value;
+        if(!text) return;
+
+        await addDoc(collection(db, "comments"), {
+            videoId: vId,
+            text: text,
+            createdAt: new Date()
+        });
+        document.getElementById('cInput').value = "";
+    };
+
+    // Pobieranie komentarzy "na żywo"
+    const q = query(collection(db, "comments"), where("videoId", "==", vId), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snap) => {
+        const list = document.getElementById('cList');
+        list.innerHTML = "";
+        snap.forEach(doc => {
+            const d = doc.data();
             const div = document.createElement('div');
             div.className = 'comment';
-            div.innerHTML = `<b>Użytkownik</b>: ${input.value}`;
-            document.getElementById('comments-list').prepend(div);
-            
-            report("💬 KOMENTARZ", `Pod filmem: **${params.get('title')}**\nTreść: ${input.value}`);
-            input.value = "";
-        }
-
-        function report(title, msg) {
-            fetch(WH, { method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({embeds: [{title: title, description: msg, color: 16711680}]})
-            });
-        }
-    </script>
+            div.innerHTML = `<b>Użytkownik:</b> ${d.text}`;
+            list.appendChild(div);
+        });
+    });
+</script>
 </body>
 </html>
