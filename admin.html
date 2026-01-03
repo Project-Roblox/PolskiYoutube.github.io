@@ -1,0 +1,91 @@
+const MY_ADMIN_EMAIL = "twoj-prywatny-email@gmail.com"; // Tu wpisz swój e-mail
+
+onAuthStateChanged(auth, (user) => {
+    if (user && user.email === MY_ADMIN_EMAIL) {
+        console.log("Witaj Panie Administratorze");
+        loadAdminData(); // Ta funkcja ładuje panel
+    } else {
+        // Jeśli to nie Ty, przekieruj na stronę główną
+        alert("Brak dostępu! Sekcja tylko dla Admina.");
+        window.location.href = "index.html";
+    }
+
+});
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel Admina - PL YT</title>
+    <style>
+        body { background: #111; color: white; font-family: sans-serif; padding: 30px; }
+        .admin-card { background: #222; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-v { background: #3ea6ff; color: black; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-del { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🛠️ Panel Administratora</h1>
+    <div id="adminStatus">Logowanie...</div>
+    
+    <h3>Lista Użytkowników (Weryfikacja)</h3>
+    <div id="userList"></div>
+
+    <h3>Zarządzaj Filmami</h3>
+    <div id="videoList"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { /* TWÓJ CONFIG */ };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const MY_EMAIL = "twoj-email@gmail.com"; // ZMIEŃ NA SWÓJ
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user || user.email !== MY_EMAIL) {
+                document.body.innerHTML = "<h1>BRAK DOSTĘPU. Tylko dla głównego Admina.</h1>";
+                return;
+            }
+            document.getElementById('adminStatus').innerText = "Zalogowano jako Główny Admin: " + user.email;
+            loadAdminData();
+        });
+
+        async function loadAdminData() {
+            // Ładowanie filmów do usuwania
+            const vSnap = await getDocs(collection(db, "content"));
+            const vList = document.getElementById('videoList');
+            vList.innerHTML = "";
+            vSnap.forEach(d => {
+                const vid = d.data();
+                vList.innerHTML += `
+                    <div class="admin-card">
+                        <span>${vid.title} (${vid.author})</span>
+                        <button class="btn-del" onclick="deleteVideo('${d.id}')">USUŃ</button>
+                    </div>
+                `;
+            });
+        }
+
+        // Funkcja nadawania weryfikacji (niebieski znaczek)
+        window.verifyUser = async (userEmail) => {
+            // Tworzy lub aktualizuje profil użytkownika w bazie
+            await setDoc(doc(db, "users", userEmail), {
+                email: userEmail,
+                verified: true
+            }, { merge: true });
+            alert("Użytkownik " + userEmail + " otrzymał niebieski znaczek!");
+        };
+
+        window.deleteVideo = async (id) => {
+            if(confirm("Usunąć na stałe?")) {
+                await deleteDoc(doc(db, "content", id));
+                location.reload();
+            }
+        };
+    </script>
+</body>
+</html>
