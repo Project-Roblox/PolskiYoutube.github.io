@@ -1,10 +1,16 @@
 <header>
-    <div class="logo"><span>PL</span> YouTube</div>
+    <div class="logo" onclick="location.reload()"><span>PL</span> YouTube</div>
+    
     <div id="auth-area">
-        <button id="loginBtn" class="btn">ZALOGUJ</button>
-        <button id="logoutBtn" class="btn" style="display:none; background:gray;">WYLOGUJ</button>
+        <button id="loginBtn" class="btn" onclick="openAuthModal()">ZALOGUJ SIĘ</button>
+        
+        <div id="userPanel" style="display:none; align-items: center; gap: 15px;">
+            <span id="userEmail" style="font-size: 14px; color: #aaa;"></span>
+            <button class="btn-add" onclick="toggleModal(true)">+ DODAJ FILM</button>
+            <button id="logoutBtn" class="btn" style="background:#333;" onclick="handleLogout()">WYLOGUJ</button>
+        </div>
     </div>
-    <button id="mainUploadBtn" class="btn-add" style="display:none;">+ DODAJ</button>
+</header>
 </header>
 
 <div id="authModal" class="modal">
