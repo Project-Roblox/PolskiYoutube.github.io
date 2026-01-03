@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Odtwarzacz - YouTube PL</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="video-page">
+    <header> </header>
+
+    <main class="video-container">
+        <div class="player-section">
+            <video id="main-video" controls autoplay></video>
+            <h1 id="v-title">Tytuł filmu</h1>
+            <div class="video-stats">
+                <span id="v-author">Autor</span>
+                <div class="actions">
+                    <button onclick="like()"><i class="material-icons">thumb_up</i> <span id="like-count">0</span></button>
+                    <button><i class="material-icons">thumb_down</i></button>
+                    <button><i class="material-icons">share</i> Udostępnij</button>
+                </div>
+            </div>
+            <hr>
+            <div class="comments-section">
+                <h3>Komentarze</h3>
+                <div class="add-comment">
+                    <input type="text" id="comment-input" placeholder="Dodaj publiczny komentarz...">
+                    <button onclick="postComment()">Skomentuj</button>
+                </div>
+                <div id="comments-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const WH = "TWÓJ_WEBHOOK_URL";
+        // Pobieranie danych z linku (?title=Nazwa&url=blob...)
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById('main-video').src = params.get('url');
+        document.getElementById('v-title').innerText = params.get('title');
+
+        function like() {
+            const count = document.getElementById('like-count');
+            count.innerText = parseInt(count.innerText) + 1;
+            report("👍 LIKE", `Ktoś polubił film: **${params.get('title')}**`);
+        }
+
+        function postComment() {
+            const input = document.getElementById('comment-input');
+            if(!input.value) return;
+            
+            const div = document.createElement('div');
+            div.className = 'comment';
+            div.innerHTML = `<b>Użytkownik</b>: ${input.value}`;
+            document.getElementById('comments-list').prepend(div);
+            
+            report("💬 KOMENTARZ", `Pod filmem: **${params.get('title')}**\nTreść: ${input.value}`);
+            input.value = "";
+        }
+
+        function report(title, msg) {
+            fetch(WH, { method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({embeds: [{title: title, description: msg, color: 16711680}]})
+            });
+        }
+    </script>
+</body>
+</html>
