@@ -1,101 +1,80 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <title>Oglądasz</title>
-    <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; margin: 0; }
-        .video-box { max-width: 800px; margin: auto; }
-        .short-mode video { width: 350px; aspect-ratio: 9/16; margin: auto; display: block; }
-        video { width: 100%; border-radius: 12px; }
-        .actions { display: flex; gap: 20px; margin: 15px 0; }
-        .btn-like { background: #222; border: 1px solid #444; color: white; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        .comment-input { width: 100%; background: #000; border: none; border-bottom: 1px solid #333; color: white; padding: 10px; margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-
-<div class="video-box" id="vBox">
-    <button onclick="history.back()" style="background:none; color:white; border:none; cursor:pointer;">⬅ Powrót</button>
-    <video id="player" controls autoplay></video>
-    <h1 id="vTitle">Tytuł</h1>
-    
-    <div class="actions">
-        <button class="btn-like" id="likeBtn">👍 <span id="likeCount">0</span></button>
+<header>
+    <div class="logo"><span>PL</span> YouTube</div>
+    <div id="auth-area">
+        <button id="loginBtn" class="btn">ZALOGUJ</button>
+        <button id="logoutBtn" class="btn" style="display:none; background:gray;">WYLOGUJ</button>
     </div>
+    <button id="mainUploadBtn" class="btn-add" style="display:none;">+ DODAJ</button>
+</header>
 
-    <hr color="#333">
-    <h3>Komentarze</h3>
-    <input type="text" id="cNick" placeholder="Twój Nick" style="width:30%; background:#111; color:white; border:none; padding:5px;">
-    <input type="text" id="cText" class="comment-input" placeholder="Dodaj publiczny komentarz...">
-    <button onclick="addComment()" style="background:#3ea6ff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer;">Skomentuj</button>
-    
-    <div id="cList" style="margin-top:20px;"></div>
+<div id="authModal" class="modal">
+    <div class="modal-content">
+        <h2 id="authTitle">Logowanie</h2>
+        <input type="email" id="email" placeholder="E-mail">
+        <input type="password" id="password" placeholder="Hasło">
+        <button class="publish-btn" id="submitAuth">Zatwierdź</button>
+        <p id="toggleAuth" style="cursor:pointer; font-size:12px; margin-top:10px; color:#3ea6ff;">Nie masz konta? Zarejestruj się</p>
+        <button onclick="document.getElementById('authModal').style.display='none'" style="border:none; background:none; color:gray; cursor:pointer;">Anuluj</button>
+    </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, updateDoc, increment, collection, addDoc, query, where, orderBy, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    // ... reszta importów (firestore)
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-        authDomain: "polski-youtub2.firebaseapp.com",
-        projectId: "polski-youtub2",
-        storageBucket: "polski-youtub2.firebasestorage.app",
-        messagingSenderId: "325129789226",
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-        measurementId: "G-B5M3F5J713"
-    };
-
+    const firebaseConfig = { /* TWÓJ CONFIG */ };
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    const auth = getAuth(app);
 
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
-    const type = params.get('type');
+    const authModal = document.getElementById('authModal');
+    let isRegisterMode = false;
 
-    if(type === 'short') document.getElementById('vBox').className = 'short-mode';
-    document.getElementById('player').src = params.get('url');
-    document.getElementById('vTitle').innerText = params.get('title');
-
-    // ŁADOWANIE LAJKÓW
-    async function getLikes() {
-        const d = await getDoc(doc(db, "content", id));
-        if(d.exists()) document.getElementById('likeCount').innerText = d.data().likes || 0;
-    }
-    getLikes();
-
-    // DODAWANIE LAJKA
-    document.getElementById('likeBtn').onclick = async () => {
-        await updateDoc(doc(db, "content", id), { likes: increment(1) });
-        getLikes();
+    // Przełączanie Rejestracja / Logowanie
+    document.getElementById('toggleAuth').onclick = () => {
+        isRegisterMode = !isRegisterMode;
+        document.getElementById('authTitle').innerText = isRegisterMode ? "Rejestracja" : "Logowanie";
+        document.getElementById('toggleAuth').innerText = isRegisterMode ? "Masz już konto? Zaloguj się" : "Nie masz konta? Zarejestruj się";
     };
 
-    // KOMENTARZE
-    window.addComment = async () => {
-        const nick = document.getElementById('cNick').value || "Anonim";
-        const text = document.getElementById('cText').value;
-        if(!text) return;
+    // Obsługa przycisku w modalach
+    document.getElementById('submitAuth').onclick = async () => {
+        const mail = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
 
-        await addDoc(collection(db, "comments"), {
-            videoId: id, nick: nick, text: text, createdAt: new Date()
-        });
-        document.getElementById('cText').value = "";
+        try {
+            if (isRegisterMode) {
+                await createUserWithEmailAndPassword(auth, mail, pass);
+                alert("Konto utworzone!");
+            } else {
+                await signInWithEmailAndPassword(auth, mail, pass);
+            }
+            authModal.style.display = 'none';
+        } catch (e) {
+            alert("Błąd: " + e.message);
+        }
     };
 
-    // WYŚWIETLANIE KOMENTARZY (Na żywo)
-    const q = query(collection(db, "comments"), where("videoId", "==", id), orderBy("createdAt", "desc"));
-    onSnapshot(q, (snap) => {
-        const list = document.getElementById('cList');
-        list.innerHTML = "";
-        snap.forEach(d => {
-            const comm = d.data();
-            const div = document.createElement('div');
-            div.style = "margin-bottom:15px; border-left: 2px solid #333; padding-left:10px;";
-            div.innerHTML = `<b>@${comm.nick}</b><br>${comm.text}`;
-            list.appendChild(div);
-        });
+    // MONITOROWANIE STANU LOGOWANIA
+    onAuthStateChanged(auth, (user) => {
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const uploadBtn = document.getElementById('mainUploadBtn');
+
+        if (user) {
+            // Zalogowany
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'inline-block';
+            uploadBtn.style.display = 'inline-block';
+            console.log("Zalogowano jako:", user.email);
+        } else {
+            // Wylogowany
+            loginBtn.style.display = 'inline-block';
+            logoutBtn.style.display = 'none';
+            uploadBtn.style.display = 'none';
+        }
     });
+
+    document.getElementById('loginBtn').onclick = () => authModal.style.display = 'flex';
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
 </script>
-</body>
-</html>
