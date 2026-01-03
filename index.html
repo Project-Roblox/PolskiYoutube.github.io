@@ -2,83 +2,115 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VideoPlatform - Next Generation</title>
+    <title>Polski YT - Strona Główna</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { background: #0f0f0f; color: white; font-family: 'Roboto', sans-serif; margin: 0; }
+        header { height: 56px; background: #0f0f0f; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; position: sticky; top: 0; }
+        .logo { font-weight: bold; font-size: 20px; color: white; text-decoration: none; }
+        .logo span { background: red; padding: 2px 6px; border-radius: 4px; }
+        .upload-section { background: #1e1e1e; padding: 20px; margin: 20px; border-radius: 12px; border: 1px dashed #444; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 20px; }
+        .v-card { cursor: pointer; background: #272727; border-radius: 12px; overflow: hidden; padding-bottom: 10px; }
+        .v-card video { width: 100%; aspect-ratio: 16/9; background: black; }
+        .v-card h4 { margin: 10px; font-size: 16px; }
+        input, button { padding: 10px; margin: 5px 0; border-radius: 5px; border: none; }
+        button { background: #3ea6ff; color: black; font-weight: bold; cursor: pointer; }
+    </style>
 </head>
 <body>
 
 <header>
-    <div class="header-left">
-        <i class="material-icons menu-icon">menu</i>
-        <div class="logo" onclick="nav('home')"><span class="red-box">YT</span> <span>Studio</span></div>
-    </div>
-    <div class="header-mid">
-        <input type="text" placeholder="Szukaj filmów, shortsów, twórców...">
-        <button class="search-btn"><i class="material-icons">search</i></button>
-    </div>
-    <div class="header-right">
-        <button class="icon-btn" onclick="nav('upload')"><i class="material-icons">video_call</i></button>
-        <button class="login-btn" id="userStatus" onclick="nav('login')">ZALOGUJ SIĘ</button>
-    </div>
+    <a href="index.html" class="logo"><span>PL</span> YouTube</a>
+    <button onclick="document.getElementById('upload-box').scrollIntoView()">+ DODAJ FILM</button>
 </header>
 
-<main>
-    <aside class="sidebar">
-        <div class="nav-item active" onclick="nav('home')"><i class="material-icons">home</i> Główna</div>
-        <div class="nav-item" onclick="nav('shorts')"><i class="material-icons">bolt</i> Shorts</div>
-        <div class="nav-item"><i class="material-icons">subscriptions</i> Subskrypcje</div>
-        <hr>
-        <div class="nav-item admin-only" id="adminLink" onclick="nav('admin')"><i class="material-icons">admin_panel_settings</i> Panel Admina</div>
-    </aside>
+<div class="upload-section" id="upload-box">
+    <h3>Prześlij film na serwer</h3>
+    <input type="text" id="vTitle" placeholder="Tytuł filmu" style="width: 300px;"><br>
+    <input type="file" id="vFile" accept="video/*"><br>
+    <button id="btnPublish">OPUBLIKUJ DLA WSZYSTKICH</button>
+    <p id="upStatus" style="font-size: 12px; color: #aaa;"></p>
+</div>
 
-    <section class="content">
-        <div id="view-home" class="page active">
-            <h2>Polecane</h2>
-            <div class="video-grid" id="main-grid"></div>
-        </div>
+<div class="video-grid" id="mainGrid">
+    </div>
 
-        <div id="view-shorts" class="page">
-            <div class="shorts-wrapper" id="shorts-container"></div>
-        </div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-        <div id="view-login" class="page">
-            <div class="auth-card">
-                <h2>Zaloguj się</h2>
-                <input type="text" id="email" placeholder="Nazwa użytkownika / Email">
-                <input type="password" id="pass" placeholder="Hasło">
-                <button class="main-btn" onclick="auth()">Kontynuuj</button>
-            </div>
-        </div>
+    // TWÓJ CONFIG
+    const firebaseConfig = {
+        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
+        authDomain: "polski-youtub2.firebaseapp.com",
+        projectId: "polski-youtub2",
+        storageBucket: "polski-youtub2.firebasestorage.app",
+        messagingSenderId: "325129789226",
+        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
+        measurementId: "G-B5M3F5J713"
+    };
 
-        <div id="view-upload" class="page">
-            <div class="auth-card">
-                <h2>Opublikuj treść</h2>
-                <select id="up-type">
-                    <option value="video">Film (Poziomy)</option>
-                    <option value="short">Short (Pionowy)</option>
-                </select>
-                <input type="text" id="up-title" placeholder="Tytuł">
-                <input type="file" id="up-file" accept="video/*">
-                <button class="main-btn" onclick="upload()">Opublikuj</button>
-            </div>
-        </div>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-        <div id="view-admin" class="page">
-            <h2>🛡️ Zarządzanie Systemem</h2>
-            <div class="admin-panel">
-                <div class="tool">
-                    <h3>Moderacja Kont</h3>
-                    <input type="text" id="target" placeholder="Nick użytkownika">
-                    <button onclick="adm('verify')">Nadaj Weryfikację</button>
-                    <button class="danger" onclick="adm('ban')">Zbanuj / Usuń</button>
-                </div>
-            </div>
-        </div>
-    </section>
-</main>
+    // ŁADOWANIE FILMÓW
+    async function loadVideos() {
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = "Pobieranie filmów...";
+        const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        grid.innerHTML = "";
 
-<script src="script.js"></script>
+        snap.forEach(doc => {
+            const data = doc.data();
+            const card = document.createElement('div');
+            card.className = 'v-card';
+            card.innerHTML = `
+                <video src="${data.url}#t=0.5" preload="metadata"></video>
+                <h4>${data.title}</h4>
+            `;
+            card.onclick = () => {
+                window.location.href = `video.html?id=${doc.id}&url=${encodeURIComponent(data.url)}&title=${encodeURIComponent(data.title)}`;
+            };
+            grid.appendChild(card);
+        });
+    }
+
+    // WRZUCANIE FILMU
+    document.getElementById('btnPublish').onclick = async () => {
+        const file = document.getElementById('vFile').files[0];
+        const title = document.getElementById('vTitle').value;
+        const status = document.getElementById('upStatus');
+
+        if(!file || !title) return alert("Wypełnij dane!");
+
+        status.innerText = "Trwa wysyłanie na serwer Google... Nie zamykaj okna.";
+        document.getElementById('btnPublish').disabled = true;
+
+        try {
+            const fileRef = ref(storage, 'movies/' + Date.now() + "_" + file.name);
+            await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(fileRef);
+
+            await addDoc(collection(db, "videos"), {
+                title: title,
+                url: url,
+                createdAt: new Date()
+            });
+
+            status.innerText = "SUKCES! Film dodany.";
+            loadVideos();
+        } catch(e) {
+            status.innerText = "Błąd: " + e.message;
+        } finally {
+            document.getElementById('btnPublish').disabled = false;
+        }
+    };
+
+    loadVideos();
+</script>
 </body>
 </html>
