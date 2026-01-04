@@ -1,78 +1,35 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <title>Oglądaj - Polski YouTube</title>
-    <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
-        .player-container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
-        video { width: 100%; border-radius: 12px; background: black; }
-        .btn { background: #272727; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; margin-top: 15px; }
-        .btn:hover { background: #3f3f3f; }
-    </style>
-</head>
-<body>
+// Dodaj to do funkcji load() w video.html
+async function load() {
+    const vRef = doc(db, "content", vid);
+    const vSnap = await getDoc(vRef);
+    const data = vSnap.data();
 
-<div class="player-container">
-    <video id="vPlayer" controls autoplay></video>
-    <h1 id="vTitle" style="font-size:24px;">Ładowanie...</h1>
-    <p id="vAuthor" style="color:#aaa;"></p>
-    <button class="btn" id="likeBtn">👍 <span id="likeCount">0</span></button>
-    <button class="btn" id="shareBtn">🚀 UDOSTĘPNIJ</button>
-</div>
+    // AUTOMATYCZNE WYŚWIETLENIE +1
+    await updateDoc(vRef, { views: increment(1) });
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, updateDoc, arrayUnion, arrayRemove, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    document.getElementById('vPlayer').src = data.url;
+    document.getElementById('vTitle').innerText = data.title;
+    
+    // NOWE STATYSTYKI WIDOCZNE DLA KAŻDEGO
+    document.getElementById('statsBar').innerHTML = `
+        <span>👁️ ${data.views || 0} wyświetleń</span> • 
+        <span>🚀 ${data.shares || 0} udostępnień</span> • 
+        <span>👍 ${data.likes || 0} lajków</span>
+    `;
+    
+    // Wyświetlenie autora
+    const uSnap = await getDoc(doc(db, "users", data.author));
+    const subs = uSnap.exists() ? uSnap.data().subs || 0 : 0;
+    document.getElementById('vAuthor').innerHTML = `
+        <b>${data.author}</b> ${uSnap.exists() && uSnap.data().verified ? '✔️' : ''} 
+        <br><small>${subs} subskrypcji</small>
+    `;
+}
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-        authDomain: "polski-youtub2.firebaseapp.com",
-        projectId: "polski-youtub2",
-        storageBucket: "polski-youtub2.firebasestorage.app",
-        messagingSenderId: "325129789226",
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-        measurementId: "G-B5M3F5J713"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const vid = new URLSearchParams(location.search).get('id');
-
-    async function load() {
-        const vSnap = await getDoc(doc(db, "content", vid));
-        const data = vSnap.data();
-        document.getElementById('vPlayer').src = data.url;
-        document.getElementById('vTitle').innerText = data.title;
-        document.getElementById('likeCount').innerText = data.likes || 0;
-
-        const uSnap = await getDoc(doc(db, "users", data.author));
-        const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span style="color:#3ea6ff">✔️</span>' : '';
-        document.getElementById('vAuthor').innerHTML = data.author + badge;
-    }
-
-    document.getElementById('likeBtn').onclick = async () => {
-        const user = auth.currentUser;
-        if(!user) return alert("Zaloguj się!");
-        const vRef = doc(db, "content", vid);
-        const vSnap = await getDoc(vRef);
-        const likedBy = vSnap.data().likedBy || [];
-
-        if(likedBy.includes(user.email)) {
-            await updateDoc(vRef, { likes: increment(-1), likedBy: arrayRemove(user.email) });
-        } else {
-            await updateDoc(vRef, { likes: increment(1), likedBy: arrayUnion(user.email) });
-        }
-        location.reload();
-    };
-
-    document.getElementById('shareBtn').onclick = () => {
-        navigator.clipboard.writeText(window.location.href);
-        alert("Link skopiowany do schowka!");
-    };
-    load();
-</script>
-</body>
-</html>
+// Zaktualizuj shareBtn aby naliczał udostępnienia
+document.getElementById('shareBtn').onclick = async () => {
+    await updateDoc(doc(db, "content", vid), { shares: increment(1) });
+    navigator.clipboard.writeText(window.location.href);
+    alert("Skopiowano i naliczono udostępnienie!");
+    location.reload();
+};
