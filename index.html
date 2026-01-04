@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Polski YouTube - Strona Główna</title>
+    <title>Polski YouTube</title>
     <style>
         body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
         header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
@@ -19,7 +19,7 @@
         .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 320px; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -43,7 +43,7 @@
         <input type="email" id="emailInp" placeholder="E-mail">
         <input type="password" id="passInp" placeholder="Hasło">
         <button class="btn btn-blue" style="width:100%" id="authSubmit">DALEJ</button>
-        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center; font-size:14px; margin-top:20px;">Zmień: Logowanie / Rejestracja</p>
+        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center; font-size:14px; margin-top:20px;">Zmień tryb: Logowanie/Rejestracja</p>
     </div>
 </div>
 
@@ -57,7 +57,14 @@
             <option value="short">Shorts (pionowy)</option>
         </select>
         <button class="btn btn-blue" style="width:100%" id="uploadSubmit">OPUBLIKUJ</button>
-        <button onclick="document.getElementById('addModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:10px; cursor:pointer;">Anuluj</button>
+    </div>
+</div>
+
+<div id="supportModal" class="modal">
+    <div class="modal-content">
+        <h2>Kontakt z mikih9a</h2>
+        <textarea id="supportMsg" placeholder="W czym możemy pomóc?"></textarea>
+        <button class="btn btn-blue" style="width:100%" id="sendSupport">WYŚLIJ</button>
     </div>
 </div>
 
@@ -84,7 +91,8 @@
         const nav = document.getElementById('navRight');
         if (user) {
             nav.innerHTML = `
-                <button id="profileBtn" class="btn" style="background:#333; color:white">MÓJ PROFIL</button>
+                <button onclick="document.getElementById('supportModal').style.display='flex'" class="btn" style="background:#444;color:white">KONTAKT</button>
+                <button id="profileBtn" class="btn" style="background:#333; color:white">PROFIL</button>
                 <button id="addBtn" class="btn btn-blue">DODAJ</button>
                 <button id="logoutBtn" class="btn" style="background:none; color:gray; font-size:12px">Wyloguj</button>`;
             document.getElementById('profileBtn').onclick = () => location.href = `profile.html?u=${user.email}`;
@@ -96,24 +104,26 @@
         }
     });
 
+    // LOGIKA SUPPORTU
+    document.getElementById('sendSupport').onclick = async () => {
+        const txt = document.getElementById('supportMsg').value;
+        if(!txt || !auth.currentUser) return alert("Zaloguj się i wpisz wiadomość!");
+        await addDoc(collection(db, "support"), { userEmail: auth.currentUser.email, messages: [{sender: auth.currentUser.email, text: txt}], createdAt: serverTimestamp() });
+        alert("Wysłano! Admin odpowie wkrótce.");
+        document.getElementById('supportModal').style.display='none';
+    };
+
+    // LOGOWANIE/DODAWANIE/ŁADOWANIE
     let isReg = false;
     document.getElementById('toggleAuth').onclick = () => { isReg = !isReg; document.getElementById('authTitle').innerText = isReg ? "Rejestracja" : "Logowanie"; };
     document.getElementById('authSubmit').onclick = async () => {
         const e = document.getElementById('emailInp').value;
         const p = document.getElementById('passInp').value;
-        try {
-            if(isReg) await createUserWithEmailAndPassword(auth, e, p);
-            else await signInWithEmailAndPassword(auth, e, p);
-            location.reload();
-        } catch(err) { alert(err.message); }
+        try { if(isReg) await createUserWithEmailAndPassword(auth, e, p); else await signInWithEmailAndPassword(auth, e, p); location.reload(); } catch(err) { alert(err.message); }
     };
-
     document.getElementById('uploadSubmit').onclick = async () => {
-        const t = document.getElementById('vTitle').value;
-        const u = document.getElementById('vUrl').value;
-        const type = document.getElementById('vType').value;
-        if(!t || !u) return alert("Wypełnij dane!");
-        await addDoc(collection(db, "content"), { title: t, url: u, type: type, author: auth.currentUser.email, likes: 0, likedBy: [], createdAt: serverTimestamp() });
+        const t = document.getElementById('vTitle').value; const u = document.getElementById('vUrl').value; const type = document.getElementById('vType').value;
+        await addDoc(collection(db, "content"), { title: t, url: u, type: type, author: auth.currentUser.email, likes: 0, views: 0, shares: 0, likedBy: [], createdAt: serverTimestamp() });
         location.reload();
     };
 
@@ -123,11 +133,11 @@
             const data = d.data();
             const uSnap = await getDoc(doc(db, "users", data.author));
             const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span style="color:#3ea6ff">✔️</span>' : '';
-            const div = document.createElement('div');
-            div.onclick = () => location.href = `video.html?id=${d.id}`;
-            div.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}${badge}</small></div>`;
-            if(data.type === 'short') { div.className = 'short-card'; document.getElementById('shortsList').appendChild(div); }
-            else { div.className = 'v-card'; document.getElementById('videoList').appendChild(div); }
+            const card = document.createElement('div');
+            card.onclick = () => location.href = `video.html?id=${d.id}`;
+            card.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}${badge}</small></div>`;
+            if(data.type === 'short') { card.className = 'short-card'; document.getElementById('shortsList').appendChild(card); }
+            else { div.className = 'v-card'; document.getElementById('videoList').appendChild(card); }
         }
     }
     load();
