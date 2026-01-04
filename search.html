@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Szukaj - Polski YouTube</title>
+    <style>
+        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* SIDEBAR Z FILTRAMI */
+        .sidebar { width: 260px; background: #1a1a1a; padding: 20px; border-right: 1px solid #333; overflow-y: auto; flex-shrink: 0; }
+        .sidebar h3 { color: #aaa; font-size: 14px; text-transform: uppercase; margin-top: 20px; }
+        .filter-group { display: flex; flex-direction: column; gap: 10px; }
+        label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
+        input[type="radio"] { accent-color: #3ea6ff; }
+        
+        /* GŁÓWNA CZĘŚĆ */
+        .main { flex: 1; padding: 20px; overflow-y: scroll; }
+        .search-header { display: flex; gap: 10px; margin-bottom: 20px; }
+        #searchInput { width: 100%; padding: 12px; background: #121212; border: 1px solid #333; color: white; border-radius: 20px; outline: none; }
+        .btn-search { padding: 0 20px; border-radius: 20px; border: none; background: #333; color: white; cursor: pointer; }
+
+        /* WYNIKI */
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .result-card { display: flex; gap: 10px; cursor: pointer; background: #121212; padding: 10px; border-radius: 8px; }
+        .result-card video { width: 160px; height: 90px; object-fit: cover; background: black; border-radius: 8px; }
+        .info { display: flex; flex-direction: column; justify-content: center; }
+        .info b { font-size: 14px; margin-bottom: 5px; }
+        .info small { color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <button onclick="location.href='index.html'" style="background:none; border:none; color:white; cursor:pointer; font-size:16px; margin-bottom:20px;">⬅ Wróć na Główną</button>
+    
+    <h2>Filtry</h2>
+
+    <h3>Typ Filmu</h3>
+    <div class="filter-group">
+        <label><input type="radio" name="type" value="all" checked onchange="applyFilters()"> Wszystkie</label>
+        <label><input type="radio" name="type" value="video" onchange="applyFilters()"> Zwykłe Filmy</label>
+        <label><input type="radio" name="type" value="short" onchange="applyFilters()"> Shorts</label>
+    </div>
+
+    <h3>Czas trwania</h3>
+    <div class="filter-group">
+        <label><input type="radio" name="dur" value="any" checked onchange="applyFilters()"> Dowolny</label>
+        <label><input type="radio" name="dur" value="vshort" onchange="applyFilters()"> Bardzo krótkie (2s - 10s)</label>
+        <label><input type="radio" name="dur" value="short" onchange="applyFilters()"> Krótkie (< 4 min)</label>
+        <label><input type="radio" name="dur" value="medium" onchange="applyFilters()"> Średnie (4 - 20 min)</label>
+        <label><input type="radio" name="dur" value="long" onchange="applyFilters()"> Długie (> 20 min)</label>
+    </div>
+</div>
+
+<div class="main">
+    <div class="search-header">
+        <input type="text" id="searchInput" placeholder="Wpisz frazę...">
+        <button class="btn-search" onclick="applyFilters()">SZUKAJ</button>
+    </div>
+    <div id="resultsArea" class="results-grid">
+        <p style="color:gray">Wpisz coś lub wybierz filtry...</p>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", measurementId: "G-B5M3F5J713" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let allVideos = [];
+
+    // 1. Pobierz wszystkie filmy raz (optymalizacja)
+    async function loadData() {
+        const q = query(collection(db, "content"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        snap.forEach(d => allVideos.push({id: d.id, ...d.data()}));
+        applyFilters(); // Pokaż wszystko na start
+    }
+
+    // 2. Główna funkcja filtrująca
+    window.applyFilters = () => {
+        const txt = document.getElementById('searchInput').value.toLowerCase();
+        const typeFilter = document.querySelector('input[name="type"]:checked').value;
+        const durFilter = document.querySelector('input[name="dur"]:checked').value;
+        const area = document.getElementById('resultsArea');
+        
+        area.innerHTML = "";
+
+        allVideos.forEach(v => {
+            // Filtr Tekstu
+            if(!v.title.toLowerCase().includes(txt)) return;
+            
+            // Filtr Typu (Shorts/Video)
+            if(typeFilter !== 'all' && v.type !== typeFilter) return;
+
+            // Tworzenie elementu (potrzebne do sprawdzenia czasu trwania)
+            const div = document.createElement('div');
+            div.className = 'result-card';
+            div.onclick = () => location.href = `video.html?id=${v.id}`;
+            
+            // Tworzymy wideo w pamięci, żeby sprawdzić długość
+            const videoEl = document.createElement('video');
+            videoEl.src = v.url + "#t=0.1";
+            videoEl.preload = "metadata"; // Pobierz tylko długość
+
+            videoEl.onloadedmetadata = () => {
+                const dur = videoEl.duration; // Czas w sekundach
+                let timeMatch = true;
+
+                // LOGIKA FILTRÓW CZASOWYCH
+                if(durFilter === 'vshort' && (dur < 2 || dur > 10)) timeMatch = false;
+                if(durFilter === 'short' && dur >= 240) timeMatch = false; // 4 min
+                if(durFilter === 'medium' && (dur < 240 || dur > 1200)) timeMatch = false; // 4-20 min
+                if(durFilter === 'long' && dur <= 1200) timeMatch = false; // > 20 min
+
+                if(timeMatch) {
+                    div.innerHTML = `
+                        <div>${videoEl.outerHTML}</div>
+                        <div class="info">
+                            <b>${v.title}</b>
+                            <small>${v.author}</small>
+                            <small style="color:#3ea6ff">${formatTime(dur)}</small>
+                        </div>
+                    `;
+                    area.appendChild(div);
+                }
+            };
+            
+            // Jeśli filtr czasu to "any", nie musimy czekać na załadowanie
+            if(durFilter === 'any') {
+                div.innerHTML = `
+                    <video src="${v.url}#t=0.1"></video>
+                    <div class="info"><b>${v.title}</b><small>${v.author}</small></div>
+                `;
+                area.appendChild(div);
+            }
+        });
+    };
+
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m}:${sec < 10 ? '0'+sec : sec}`;
+    }
+
+    loadData();
+</script>
+</body>
+</html>
