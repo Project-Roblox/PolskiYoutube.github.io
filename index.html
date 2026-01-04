@@ -2,122 +2,161 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Polski YouTube - Naprawione Filmy</title>
+    <title>Polski YouTube - Pełna Wersja</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
-        header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
+        /* CSS: Naprawa przewijania i układu */
+        body { 
+            background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; 
+            overflow-y: scroll; /* Wymuszenie możliwości przewijania */
+        }
+        header { 
+            height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; 
+            background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; 
+        }
+        .search-bar { 
+            flex: 0 1 600px; display: flex; background: #121212; border: 1px solid #333; border-radius: 40px; padding: 2px 15px;
+        }
+        .search-bar input { 
+            background: transparent; border: none; color: white; padding: 8px; width: 100%; outline: none; 
+        }
         .logo { font-size: 20px; font-weight: bold; cursor: pointer; color: white; text-decoration: none; }
         .logo span { background: red; padding: 2px 8px; border-radius: 4px; margin-right: 5px; }
+        
+        .container { max-width: 1300px; margin: auto; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        
+        .shorts-grid { 
+            display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: thin;
+        }
+        .v-card, .short-card { cursor: pointer; background: #1a1a1a; border-radius: 12px; overflow: hidden; transition: 0.3s; }
+        .v-card:hover { background: #2a2a2a; }
+        .v-card video { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+        .short-card { width: 180px; flex-shrink: 0; }
+        .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; display: block; }
+
         .btn { border: none; padding: 8px 16px; border-radius: 18px; cursor: pointer; font-weight: bold; margin-left: 10px; }
         .btn-blue { background: #3ea6ff; color: #0f0f0f; }
-        .container { max-width: 1200px; margin: auto; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .shorts-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
-        .v-card, .short-card { cursor: pointer; background: #1a1a1a; border-radius: 12px; overflow: hidden; border: 1px solid #333; transition: 0.2s; }
-        .v-card:hover { border-color: #555; }
-        /* Naprawa widoczności wideo */
-        .v-card video { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #000; }
-        .short-card { width: 160px; flex-shrink: 0; }
-        .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; display: block; background: #000; }
+
+        /* Banner weryfikacji */
+        .verify-banner { background: #ffcc00; color: black; padding: 10px; text-align: center; font-weight: bold; display: none; }
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; text-align: center; }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
-        .verify-banner { background: #ffcc00; color: black; padding: 12px; text-align: center; font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
-<div id="verifyBanner" class="verify-banner">Konto niezweryfikowane! Sprawdź e-mail i <button onclick="location.reload()">ODŚWIEŻ STATUS</button></div>
+<div id="verifyBanner" class="verify-banner">Konto niezweryfikowane! Sprawdź e-mail. <button onclick="location.reload()" style="cursor:pointer">ODŚWIEŻ</button></div>
 
 <header>
     <div class="logo" id="mainLogo"><span>PL</span> YouTube</div>
+    
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Szukaj filmów...">
+        <button style="background:none; border:none; color:white; cursor:pointer; padding:0 10px;">🔍</button>
+    </div>
+
     <div id="navRight"></div>
 </header>
 
 <div class="container">
-    <h3>📱 Shortsy</h3>
+    <h3>Shorts</h3>
     <div id="shortsList" class="shorts-grid"></div>
+    
     <hr style="border:0; border-top:1px solid #333; margin: 30px 0;">
-    <h3>🎥 Filmy</h3>
+    
+    <h3>Polecane Filmy</h3>
     <div id="videoList" class="grid"></div>
 </div>
 
-<div id="authModal" class="modal"><div class="modal-content"><h2 id="authTitle">Logowanie</h2><input type="email" id="emailInp" placeholder="E-mail"><input type="password" id="passInp" placeholder="Hasło"><button class="btn btn-blue" style="width:100%" id="authSubmit">DALEJ</button><p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; margin-top:15px;">Rejestracja</p></div></div>
-<div id="addModal" class="modal"><div class="modal-content"><h2>Dodaj film</h2><input type="text" id="vTitle" placeholder="Tytuł"><input type="text" id="vUrl" placeholder="Link .mp4 (np. z Discord/Dropbox)"><select id="vType"><option value="video">Film (16:9)</option><option value="short">Shorts (9:16)</option></select><button class="btn btn-blue" style="width:100%" id="uploadSubmit">OPUBLIKUJ</button></div></div>
+<div id="authModal" class="modal"><div class="modal-content"><h2 id="authTitle">Logowanie</h2><input type="email" id="emailInp" style="width:100%; padding:10px; margin:5px 0;" placeholder="E-mail"><input type="password" id="passInp" style="width:100%; padding:10px; margin:5px 0;" placeholder="Hasło"><button class="btn btn-blue" style="width:100%; margin-top:10px" id="authSubmit">ZALOGUJ</button><p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; margin-top:15px; font-size:14px;">Nie masz konta? Zarejestruj się</p></div></div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", measurementId: "G-B5M3F5J713" };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // LOGOWANIE
+    // 1. OBSŁUGA LOGOWANIA
     let isReg = false;
-    document.getElementById('toggleAuth').onclick = () => { isReg = !isReg; document.getElementById('authTitle').innerText = isReg ? "Rejestracja" : "Logowanie"; };
-    document.getElementById('authSubmit').onclick = async () => {
-        const e = document.getElementById('emailInp').value; const p = document.getElementById('passInp').value;
-        try { if(isReg) { const c = await createUserWithEmailAndPassword(auth, e, p); await sendEmailVerification(c.user); alert("Sprawdź maila!"); } else await signInWithEmailAndPassword(auth, e, p); location.reload(); } catch(err) { alert(err.message); }
+    document.getElementById('toggleAuth').onclick = () => {
+        isReg = !isReg;
+        document.getElementById('authTitle').innerText = isReg ? "Rejestracja" : "Logowanie";
+        document.getElementById('authSubmit').innerText = isReg ? "ZAREJESTRUJ" : "ZALOGUJ";
     };
 
+    document.getElementById('authSubmit').onclick = async () => {
+        const e = document.getElementById('emailInp').value;
+        const p = document.getElementById('passInp').value;
+        try {
+            if(isReg) {
+                const cred = await createUserWithEmailAndPassword(auth, e, p);
+                await sendEmailVerification(cred.user);
+                alert("Wysłano link weryfikacyjny!");
+            } else {
+                await signInWithEmailAndPassword(auth, e, p);
+            }
+            location.reload();
+        } catch(err) { alert(err.message); }
+    };
+
+    // 2. NAWIGACJA I PROFIL
     onAuthStateChanged(auth, async (user) => {
         const nav = document.getElementById('navRight');
         if (user) {
             await user.reload();
             if(!user.emailVerified) document.getElementById('verifyBanner').style.display = 'block';
-            nav.innerHTML = `<button id="addBtn" class="btn btn-blue">DODAJ</button><button id="logoutBtn" class="btn" style="color:gray;background:none">Wyloguj</button>`;
+            
+            nav.innerHTML = `
+                <button class="btn" style="background:#333; color:white;" onclick="location.href='history.html'">📜 HISTORIA</button>
+                <button class="btn btn-blue" onclick="location.href='profile.html?u=${user.email}'">👤 MÓJ PROFIL</button>
+                <button class="btn" style="background:none; color:gray; font-size:11px;" id="logoutBtn">Wyloguj</button>
+            `;
             document.getElementById('logoutBtn').onclick = () => signOut(auth).then(() => location.reload());
-            document.getElementById('addBtn').onclick = () => user.emailVerified ? document.getElementById('addModal').style.display='flex' : alert("Zweryfikuj e-mail!");
         } else {
             nav.innerHTML = `<button onclick="document.getElementById('authModal').style.display='flex'" class="btn btn-blue">ZALOGUJ</button>`;
         }
     });
 
-    // KLUCZOWA POPRAWKA ŁADOWANIA FILMÓW
-    async function load() {
-        try {
-            const q = query(collection(db, "content"), orderBy("createdAt", "desc"));
-            const snap = await getDocs(q);
-            const vList = document.getElementById('videoList');
-            const sList = document.getElementById('shortsList');
-            
-            vList.innerHTML = ""; 
-            sList.innerHTML = "";
+    // 3. WYSZUKIWARKA I ŁADOWANIE FILMÓW
+    async function loadContent(searchTerm = "") {
+        const q = query(collection(db, "content"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        const vList = document.getElementById('videoList');
+        const sList = document.getElementById('shortsList');
+        
+        vList.innerHTML = ""; sList.innerHTML = "";
 
-            snap.forEach((d) => {
-                const data = d.data();
-                const card = document.createElement('div');
-                card.className = data.type === 'short' ? 'short-card' : 'v-card';
-                
-                // Dodano playsinline, muted i preload, aby przeglądarka załadowała miniaturkę
-                card.innerHTML = `
-                    <video src="${data.url}" preload="metadata" muted playsinline onmouseover="this.play()" onmouseout="this.pause(); this.currentTime=0;"></video>
-                    <div style="padding:10px">
-                        <b style="font-size:14px">${data.title}</b><br>
-                        <small style="color:#aaa">${data.author}</small>
-                    </div>
-                `;
-                
-                card.onclick = () => location.href = `video.html?id=${d.id}`;
-                
-                if(data.type === 'short') sList.appendChild(card);
-                else vList.appendChild(card);
-            });
-        } catch (e) { console.error("Błąd ładowania:", e); }
+        snap.forEach(d => {
+            const data = d.data();
+            // Filtr wyszukiwania (proste dopasowanie tytułu)
+            if(searchTerm && !data.title.toLowerCase().includes(searchTerm.toLowerCase())) return;
+
+            const card = document.createElement('div');
+            card.className = data.type === 'short' ? 'short-card' : 'v-card';
+            card.onclick = () => location.href = `video.html?id=${d.id}`;
+            card.innerHTML = `
+                <video src="${data.url}#t=0.1" preload="metadata" muted></video>
+                <div style="padding:10px">
+                    <b style="font-size:14px">${data.title}</b><br>
+                    <small style="color:#aaa">${data.author}</small>
+                </div>
+            `;
+            if(data.type === 'short') sList.appendChild(card);
+            else vList.appendChild(card);
+        });
     }
-    load();
 
-    document.getElementById('uploadSubmit').onclick = async () => {
-        const t = document.getElementById('vTitle').value; const u = document.getElementById('vUrl').value; const type = document.getElementById('vType').value;
-        if(!t || !u) return alert("Uzupełnij dane");
-        await addDoc(collection(db, "content"), { title: t, url: u, type: type, author: auth.currentUser.email, createdAt: serverTimestamp() });
-        location.reload();
-    };
+    // Wywołanie wyszukiwarki
+    document.getElementById('searchInput').oninput = (e) => loadContent(e.target.value);
+    
+    loadContent(); // Pierwsze ładowanie
 
+    // Admin logo trick
     let cl = 0; document.getElementById('mainLogo').onclick = () => { cl++; if(cl==5) location.href="admin.html"; setTimeout(()=>cl=0,2000); };
 </script>
 </body>
