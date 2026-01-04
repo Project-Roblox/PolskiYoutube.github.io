@@ -2,119 +2,137 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Panel Administratora - PL YT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administratora</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; }
-        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .admin-section { background: #1a1a1a; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; margin: 0; }
+        .container { max-width: 800px; margin: auto; }
+        h1 { color: #ff0000; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .admin-section { background: #1a1a1a; padding: 20px; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .item-card { 
             background: #282828; padding: 15px; border-radius: 8px; 
-            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+            border-left: 4px solid #333;
         }
-        .btn { border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-verify { background: #3ea6ff; color: black; }
+        .btn { border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-verify { background: #3ea6ff; color: black; margin-right: 5px; }
         .btn-delete { background: #ff4d4d; color: white; }
-        #adminStatus { color: #3ea6ff; font-weight: bold; margin-bottom: 20px; }
+        .btn:hover { opacity: 0.8; }
+        #adminStatus { color: #aaa; margin-bottom: 20px; padding: 10px; background: #222; border-radius: 5px; }
+        .verified-tag { color: #3ea6ff; font-weight: bold; margin-left: 10px; }
     </style>
 </head>
 <body>
 
+<div class="container">
     <h1>🛠️ Panel Administratora</h1>
-    <div id="adminStatus">Sprawdzanie uprawnień...</div>
+    <div id="adminStatus">Inicjalizacja systemu...</div>
 
     <div class="admin-section">
-        <h3>Lista Użytkowników (Weryfikacja)</h3>
-        <div id="userList">Ładowanie użytkowników...</div>
+        <h3>👥 Użytkownicy i Weryfikacja</h3>
+        <div id="userList">Ładowanie listy...</div>
     </div>
 
     <div class="admin-section">
-        <h3>Zarządzaj Filmami</h3>
+        <h3>🎥 Zarządzanie Filmami</h3>
         <div id="videoList">Ładowanie filmów...</div>
     </div>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script type="module">
+    // IMPORTY Z FIREBASE
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, deleteDoc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-            authDomain: "polski-youtub2.firebaseapp.com",
-            projectId: "polski-youtub2",
-            storageBucket: "polski-youtub2.firebasestorage.app",
-            messagingSenderId: "325129789226",
-            appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-            measurementId: "G-B5M3F5J713"
-        };
+    // KONFIGURACJA
+    const firebaseConfig = {
+        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
+        authDomain: "polski-youtub2.firebaseapp.com",
+        projectId: "polski-youtub2",
+        storageBucket: "polski-youtub2.firebasestorage.app",
+        messagingSenderId: "325129789226",
+        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
+        measurementId: "G-B5M3F5J713"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-        // TWOJE ZABEZPIECZENIE
-        const MY_ADMIN_EMAIL = "mikih9a@gmail.com"; 
+    // TWÓJ ADRES ADMINA
+    const MY_ADMIN_EMAIL = "mikih9a@gmail.com"; 
 
-        onAuthStateChanged(auth, (user) => {
-            if (user && user.email === MY_ADMIN_EMAIL) {
-                document.getElementById('adminStatus').innerText = "Witaj, Panie Administratorze (" + user.email + ")";
-                loadAdminData();
-            } else {
-                alert("Brak dostępu! Sekcja tylko dla Admina.");
-                window.location.href = "index.html";
-            }
-        });
+    // SPRAWDZANIE UPRAWNIEŃ
+    onAuthStateChanged(auth, (user) => {
+        if (user && user.email === MY_ADMIN_EMAIL) {
+            document.getElementById('adminStatus').innerHTML = "✅ Zalogowano jako Główny Administrator: <b>" + user.email + "</b>";
+            loadAdminData();
+        } else {
+            document.getElementById('adminStatus').innerHTML = "❌ Brak uprawnień. Przekierowanie...";
+            setTimeout(() => { window.location.href = "index.html"; }, 2000);
+        }
+    });
 
-        async function loadAdminData() {
-            const vList = document.getElementById('videoList');
-            const uList = document.getElementById('userList');
+    async function loadAdminData() {
+        const vList = document.getElementById('videoList');
+        const uList = document.getElementById('userList');
 
-            // 1. ŁADOWANIE FILMÓW
+        try {
+            // 1. POBIERANIE FILMÓW
             const vSnap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
             vList.innerHTML = "";
+            
+            // Zbieramy autorów do sekcji użytkowników
+            const authors = new Set();
+
             vSnap.forEach(d => {
                 const vid = d.data();
+                authors.add(vid.author);
+                
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
-                    <span><b>${vid.title}</b> (Autor: ${vid.author})</span>
-                    <button class="btn btn-delete" id="del-${d.id}">USUŃ</button>
+                    <span><b>${vid.title}</b><br><small>${vid.author}</small></span>
+                    <button class="btn btn-delete" data-id="${d.id}">USUŃ</button>
                 `;
                 vList.appendChild(card);
-                document.getElementById(`del-${d.id}`).onclick = () => deleteVideo(d.id);
             });
 
-            // 2. ŁADOWANIE LISTY UNIKALNYCH UŻYTKOWNIKÓW Z FILMÓW
-            const authors = new Set();
-            vSnap.forEach(d => authors.add(d.data().author));
+            // 2. POBIERANIE UŻYTKOWNIKÓW (Z unikalnych autorów)
             uList.innerHTML = "";
             authors.forEach(email => {
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <span>${email}</span>
-                    <button class="btn btn-verify" id="ver-${email.replace(/[@.]/g, '')}">NADAJ ZNACZEK ✔️</button>
+                    <button class="btn btn-verify" data-email="${email}">DAJ ZNACZEK ✔️</button>
                 `;
                 uList.appendChild(card);
-                document.getElementById(`ver-${email.replace(/[@.]/g, '')}`).onclick = () => verifyUser(email);
             });
-        }
 
-        // FUNKCJA USUWANIA
-        async function deleteVideo(id) {
-            if(confirm("Czy na pewno usunąć ten film?")) {
-                await deleteDoc(doc(db, "content", id));
-                location.reload();
-            }
-        }
+            // PODPIĘCIE KLIKNIĘĆ (Event Delegation)
+            document.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('btn-delete')) {
+                    const id = e.target.getAttribute('data-id');
+                    if(confirm("Usunąć ten film na stałe?")) {
+                        await deleteDoc(doc(db, "content", id));
+                        location.reload();
+                    }
+                }
+                if (e.target.classList.contains('btn-verify')) {
+                    const email = e.target.getAttribute('data-email');
+                    await setDoc(doc(db, "users", email), { verified: true, email: email }, { merge: true });
+                    alert("Użytkownik " + email + " zweryfikowany!");
+                }
+            });
 
-        // FUNKCJA WERYFIKACJI
-        async function verifyUser(email) {
-            await setDoc(doc(db, "users", email), {
-                verified: true,
-                email: email
-            }, { merge: true });
-            alert("Użytkownik " + email + " został zweryfikowany!");
+        } catch (error) {
+            console.error("Błąd ładowania danych:", error);
+            vList.innerHTML = "Błąd uprawnień Firestore (sprawdź Rules w Firebase).";
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
