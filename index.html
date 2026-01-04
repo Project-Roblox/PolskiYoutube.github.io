@@ -20,10 +20,10 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
-        #chatDisplay { height: 200px; overflow-y: auto; background: #111; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
-        .msg { margin-bottom: 8px; padding: 5px; border-radius: 5px; }
-        .msg-admin { background: #3ea6ff; color: black; align-self: flex-start; }
-        .msg-user { background: #444; color: white; text-align: right; }
+        #chatDisplay { height: 250px; overflow-y: auto; background: #111; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-direction: column; }
+        .msg { margin-bottom: 8px; padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+        .msg-admin { background: #3ea6ff; color: black; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .msg-user { background: #444; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
     </style>
 </head>
 <body>
@@ -44,9 +44,11 @@
 <div id="supportModal" class="modal">
     <div class="modal-content">
         <h3>Support: mikih9a</h3>
-        <div id="chatDisplay">Wczytywanie rozmowy...</div>
-        <input type="text" id="supportMsg" placeholder="Napisz wiadomość...">
-        <button class="btn btn-blue" style="width:100%" id="sendSupport">WYŚLIJ</button>
+        <div id="chatDisplay">Wczytywanie historii...</div>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="supportMsg" placeholder="Napisz do admina..." style="margin:0;">
+            <button class="btn btn-blue" id="sendSupport">></button>
+        </div>
         <button onclick="document.getElementById('supportModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:10px; cursor:pointer;">Zamknij</button>
     </div>
 </div>
@@ -64,11 +66,10 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // NAWIGACJA
     onAuthStateChanged(auth, user => {
         const nav = document.getElementById('navRight');
         if (user) {
-            nav.innerHTML = `<button id="openSup" class="btn" style="background:#444;color:white">SUPPORT</button><button id="prof" class="btn" style="background:#333;color:white">PROFIL</button><button id="add" class="btn btn-blue">DODAJ</button><button id="out" class="btn" style="color:gray;background:none">Wyloguj</button>`;
+            nav.innerHTML = `<button id="openSup" class="btn" style="background:#444;color:white">SUPPORT</button><button id="prof" class="btn" style="background:#333;color:white">PROFIL</button><button id="add" class="btn btn-blue">DODAJ</button><button id="out" class="btn" style="color:gray;background:none;font-size:10px">Wyloguj</button>`;
             document.getElementById('openSup').onclick = () => { document.getElementById('supportModal').style.display='flex'; loadChat(user.email); };
             document.getElementById('prof').onclick = () => location.href = `profile.html?u=${user.email}`;
             document.getElementById('add').onclick = () => document.getElementById('addModal').style.display='flex';
@@ -78,18 +79,16 @@
         }
     });
 
-    // CZAT SUPPORTU (DWUSTRONNY)
     async function loadChat(email) {
         const q = query(collection(db, "support"), where("userEmail", "==", email));
         onSnapshot(q, (snap) => {
             const display = document.getElementById('chatDisplay');
             display.innerHTML = "";
-            if(snap.empty) display.innerHTML = "Brak wiadomości. Napisz pierwszy!";
             snap.forEach(d => {
                 d.data().messages.forEach(m => {
                     const div = document.createElement('div');
                     div.className = `msg ${m.sender === 'mikih9a@gmail.com' ? 'msg-admin' : 'msg-user'}`;
-                    div.innerHTML = `<b>${m.sender === 'mikih9a@gmail.com' ? 'ADMIN' : 'Ty'}:</b> ${m.text}`;
+                    div.innerHTML = m.text;
                     display.appendChild(div);
                 });
                 display.scrollTop = display.scrollHeight;
@@ -100,22 +99,21 @@
 
     document.getElementById('sendSupport').onclick = async () => {
         const txt = document.getElementById('supportMsg').value;
-        if(!txt) return;
-        const user = auth.currentUser.email;
+        if(!txt || !auth.currentUser) return;
         if(window.currentChatId) {
-            await updateDoc(doc(db, "support", window.currentChatId), { messages: arrayUnion({sender: user, text: txt}) });
+            await updateDoc(doc(db, "support", window.currentChatId), { messages: arrayUnion({sender: auth.currentUser.email, text: txt}) });
         } else {
-            await addDoc(collection(db, "support"), { userEmail: user, messages: [{sender: user, text: txt}], createdAt: serverTimestamp() });
+            await addDoc(collection(db, "support"), { userEmail: auth.currentUser.email, messages: [{sender: auth.currentUser.email, text: txt}], createdAt: serverTimestamp() });
         }
         document.getElementById('supportMsg').value = "";
     };
 
-    // ŁADOWANIE FILMÓW (NAPRAWIONE)
     async function load() {
         const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
         const vList = document.getElementById('videoList');
         const sList = document.getElementById('shortsList');
-        snap.forEach(async (d) => {
+        vList.innerHTML = ""; sList.innerHTML = "";
+        for (const d of snap.docs) {
             const data = d.data();
             const uSnap = await getDoc(doc(db, "users", data.author));
             const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span style="color:#3ea6ff">✔️</span>' : '';
@@ -124,11 +122,10 @@
             card.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}${badge}</small></div>`;
             if(data.type === 'short') { card.className = 'short-card'; sList.appendChild(card); }
             else { card.className = 'v-card'; vList.appendChild(card); }
-        });
+        }
     }
     load();
 
-    // LOGOWANIE I ADMIN LINK (5 KLIKNIĘĆ W LOGO)
     let isReg = false;
     document.getElementById('toggleAuth').onclick = () => { isReg = !isReg; document.getElementById('authTitle').innerText = isReg ? "Rejestracja" : "Logowanie"; };
     document.getElementById('authSubmit').onclick = async () => {
