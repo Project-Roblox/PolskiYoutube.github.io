@@ -2,87 +2,160 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Panel mikih9a</title>
+    <title>Panel Dowodzenia - mikih9a</title>
     <style>
-        body { background: #000; color: white; font-family: sans-serif; display: flex; margin: 0; }
-        .sidebar { width: 220px; background: #111; height: 100vh; padding: 20px; border-right: 1px solid #333; }
-        .main { flex: 1; padding: 20px; overflow-y: auto; }
-        .card { background: #1a1a1a; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
-        .btn { padding: 5px 10px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-red { background: #ff4444; color: white; }
+        body { background: #000; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; }
+        .sidebar { width: 240px; background: #111; height: 100vh; padding: 20px; border-right: 1px solid #333; position: fixed; }
+        .main { margin-left: 280px; padding: 20px; flex: 1; }
+        .card { background: #1a1a1a; padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 15px; }
+        .btn { padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-top: 5px; }
         .btn-blue { background: #3ea6ff; color: black; }
-        input { background: #222; border: 1px solid #444; color: white; padding: 5px; margin-right: 5px; }
+        .btn-red { background: #ff4444; color: white; }
+        .btn-green { background: #2ba640; color: white; }
+        input { background: #222; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; margin-right: 5px; width: 80px; }
+        .chat-box { background: #000; height: 200px; overflow-y: auto; padding: 10px; border-radius: 8px; border: 1px solid #444; margin-bottom: 10px; }
+        .msg { margin-bottom: 5px; font-size: 13px; }
+        .msg-admin { color: #3ea6ff; }
+        .msg-user { color: #aaa; }
+        h2 { border-bottom: 2px solid #3ea6ff; padding-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <h2>mikih9a Panel</h2>
-    <hr>
-    <button onclick="loadSection('vids')" style="width:100%; height:40px; margin-bottom:10px;">🎬 FILMY</button>
-    <button onclick="loadSection('support')" style="width:100%; height:40px;">💬 SUPPORT</button>
+    <h2 style="color:#3ea6ff; border:none">PL YouTube Admin</h2>
+    <p>Zalogowany: <b>mikih9a@gmail.com</b></p>
+    <hr style="border:0; border-top:1px solid #333; margin: 20px 0;">
+    <button onclick="loadSection('vids')" style="width:100%; height:45px; margin-bottom:10px; cursor:pointer;">🎬 ZARZĄDZAJ FILMAMI</button>
+    <button onclick="loadSection('chats')" style="width:100%; height:45px; cursor:pointer;">💬 SUPPORT / CZATY</button>
 </div>
 
-<div class="main" id="content">Wybierz sekcję z lewej strony</div>
+<div class="main" id="adminMain">
+    <h1>Witaj w panelu, mikih9a!</h1>
+    <p>Wybierz sekcję z lewej strony, aby rozpocząć zarządzanie.</p>
+</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion, setDoc, onSnapshot, orderBy, query } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", measurementId: "G-B5M3F5J713" };
+    const firebaseConfig = {
+        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
+        authDomain: "polski-youtub2.firebaseapp.com",
+        projectId: "polski-youtub2",
+        storageBucket: "polski-youtub2.firebasestorage.app",
+        messagingSenderId: "325129789226",
+        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
+        measurementId: "G-B5M3F5J713"
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    window.loadSection = async (s) => {
-        const main = document.getElementById('content');
-        main.innerHTML = "Wczytywanie...";
-        
-        if(s === 'vids') {
+    window.loadSection = async (section) => {
+        const container = document.getElementById('adminMain');
+        container.innerHTML = "<h2>Wczytywanie...</h2>";
+
+        if(section === 'vids') {
             const snap = await getDocs(collection(db, "content"));
-            main.innerHTML = "<h1>Zarządzanie Filmami</h1>";
+            container.innerHTML = "<h2>Zarządzanie Filmami</h2>";
             snap.forEach(d => {
                 const data = d.data();
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `
-                    <b>${data.title}</b> | Autor: ${data.author}<br><br>
-                    Lajki: <input type="number" id="l-${d.id}" value="${data.likes}"> 
-                    Wyśw: <input type="number" id="v-${d.id}" value="${data.views}">
-                    <button class="btn btn-blue" onclick="saveStat('${d.id}')">ZAPISZ</button>
-                    <button class="btn btn-red" onclick="del('${d.id}')">USUŃ</button>
-                    <button class="btn" onclick="verify('${data.author}')">DAJ ✔️</button>
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b>${data.title}</b> <br>
+                            <small>Autor: ${data.author}</small>
+                        </div>
+                        <button class="btn btn-red" onclick="delVid('${d.id}')">USUŃ FILM</button>
+                    </div>
+                    <hr style="border:0; border-top:1px solid #333; margin: 10px 0;">
+                    <div>
+                        Lajki: <input type="number" id="l-${d.id}" value="${data.likes || 0}">
+                        Wyświetlenia: <input type="number" id="v-${d.id}" value="${data.views || 0}">
+                        Udostępnienia: <input type="number" id="s-${d.id}" value="${data.shares || 0}">
+                        <button class="btn btn-blue" onclick="saveStats('${d.id}')">ZAPISZ STATYSTYKI</button>
+                        <button class="btn btn-green" onclick="verifyUser('${data.author}')">WERYFIKUJ AUTORA (✔️)</button>
+                    </div>
                 `;
-                main.appendChild(div);
+                container.appendChild(card);
             });
         }
-        
-        if(s === 'support') {
-            const snap = await getDocs(collection(db, "support"));
-            main.innerHTML = "<h1>Wiadomości Support</h1>";
-            snap.forEach(d => {
-                const data = d.data();
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `<b>Od: ${data.userEmail}</b><p>${data.messages[0].text}</p>
-                <input type="text" placeholder="Twoja odpowiedź..."><button class="btn btn-blue">ODPISZ</button>`;
-                main.appendChild(div);
+
+        if(section === 'chats') {
+            container.innerHTML = "<h2>Support i Czaty</h2>";
+            onSnapshot(collection(db, "support"), (snap) => {
+                const oldChats = document.querySelectorAll('.chat-card');
+                oldChats.forEach(c => c.remove());
+                
+                snap.forEach(d => {
+                    const data = d.data();
+                    const card = document.createElement('div');
+                    card.className = 'card chat-card';
+                    card.innerHTML = `
+                        <b>Użytkownik: ${data.userEmail}</b>
+                        <div class="chat-box" id="box-${d.id}">
+                            ${data.messages.map(m => `
+                                <div class="msg ${m.sender === 'mikih9a@gmail.com' ? 'msg-admin' : 'msg-user'}">
+                                    <b>${m.sender === 'mikih9a@gmail.com' ? 'TY' : 'UŻYTKOWNIK'}:</b> ${m.text}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="reply-${d.id}" placeholder="Twoja odpowiedź..." style="flex:1; width:auto;">
+                            <button class="btn btn-blue" onclick="sendReply('${d.id}')">WYŚLIJ ODP.</button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                    const box = document.getElementById(`box-${d.id}`);
+                    box.scrollTop = box.scrollHeight;
+                });
             });
         }
     };
 
-    window.saveStat = async (id) => {
+    // --- FUNKCJE OBSŁUGI ---
+
+    window.saveStats = async (id) => {
         const l = document.getElementById(`l-${id}`).value;
         const v = document.getElementById(`v-${id}`).value;
-        await updateDoc(doc(db, "content", id), { likes: parseInt(l), views: parseInt(v) });
-        alert("Zapisano!");
+        const s = document.getElementById(`s-${id}`).value;
+        await updateDoc(doc(db, "content", id), {
+            likes: parseInt(l),
+            views: parseInt(v),
+            shares: parseInt(s)
+        });
+        alert("Statystyki zaktualizowane!");
     };
 
-    window.del = async (id) => { if(confirm("Usunąć?")) { await deleteDoc(doc(db, "content", id)); location.reload(); }};
-    
-    window.verify = async (email) => {
-        await setDoc(doc(db, "users", email), { verified: true }, { merge: true });
-        alert("Zweryfikowano " + email);
+    window.delVid = async (id) => {
+        if(confirm("Czy na pewno chcesz usunąć ten film na zawsze?")) {
+            await deleteDoc(doc(db, "content", id));
+            loadSection('vids');
+        }
     };
+
+    window.verifyUser = async (email) => {
+        await setDoc(doc(db, "users", email), { verified: true }, { merge: true });
+        alert("Użytkownik " + email + " otrzymał weryfikację ✔️");
+    };
+
+    window.sendReply = async (id) => {
+        const input = document.getElementById(`reply-${id}`);
+        const text = input.value;
+        if(!text) return;
+
+        await updateDoc(doc(db, "support", id), {
+            messages: arrayUnion({
+                sender: "mikih9a@gmail.com",
+                text: text
+            })
+        });
+        input.value = "";
+    };
+
 </script>
 </body>
 </html>
