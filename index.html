@@ -6,73 +6,72 @@
     <style>
         body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
         header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
-        .logo { font-size: 20px; font-weight: bold; cursor: pointer; }
-        .logo span { background: red; padding: 2px 8px; border-radius: 4px; }
+        .logo { font-size: 20px; font-weight: bold; cursor: pointer; color: white; text-decoration: none; }
+        .logo span { background: red; padding: 2px 8px; border-radius: 4px; margin-right: 5px; }
         .container { max-width: 1200px; margin: auto; padding: 20px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
         .shorts-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
-        .v-card { cursor: pointer; background: #1a1a1a; border-radius: 12px; overflow: hidden; }
+        .v-card { cursor: pointer; background: #1a1a1a; border-radius: 12px; overflow: hidden; border: 1px solid #333; }
         .v-card video { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
         .short-card { width: 180px; flex-shrink: 0; cursor: pointer; }
         .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; border-radius: 12px; }
         .verified-badge { color: #3ea6ff; margin-left: 4px; font-weight: bold; }
-        .btn-blue { background: #3ea6ff; color: #0f0f0f; border: none; padding: 8px 16px; border-radius: 18px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="logo" id="mainLogo"><span>PL</span> YouTube</div>
-    <button id="showLogin" class="btn-blue">ZALOGUJ SIĘ</button>
 </header>
 
 <div class="container">
     <h3>📱 Shortsy</h3>
     <div id="shortsList" class="shorts-grid"></div>
-    
+    <hr style="border:0; border-top:1px solid #333; margin: 30px 0;">
     <h3>🎥 Filmy</h3>
     <div id="videoList" class="grid"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { /* TWOJE CONFIG */ };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const firebaseConfig = {
+        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
+        authDomain: "polski-youtub2.firebaseapp.com",
+        projectId: "polski-youtub2",
+        storageBucket: "polski-youtub2.firebasestorage.app",
+        messagingSenderId: "325129789226",
+        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
+        measurementId: "G-B5M3F5J713"
+    };
 
-    async function getAuthorName(email) {
-        const uSnap = await getDoc(doc(db, "users", email));
-        if (uSnap.exists() && uSnap.data().verified) {
-            return `${email} <span class="verified-badge">✔️</span>`;
-        }
-        return email;
-    }
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     async function load() {
         const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
         for (const d of snap.docs) {
             const data = d.data();
-            const authorHTML = await getAuthorName(data.author);
+            const uSnap = await getDoc(doc(db, "users", data.author));
+            const badge = (uSnap.exists() && uSnap.data().verified) ? '<span class="verified-badge">✔️</span>' : '';
             
             if (data.type === 'short') {
                 const div = document.createElement('div');
                 div.className = 'short-card';
-                div.innerHTML = `<video src="${data.url}#t=0.1"></video><p>${data.title}</p><small>${authorHTML}</small>`;
+                div.innerHTML = `<video src="${data.url}#t=0.1"></video><p style="margin:5px 0;font-size:14px">${data.title}</p><small style="color:#aaa">${data.author}${badge}</small>`;
                 div.onclick = () => location.href = `video.html?id=${d.id}`;
                 document.getElementById('shortsList').appendChild(div);
             } else {
                 const div = document.createElement('div');
                 div.className = 'v-card';
-                div.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:10px"><b>${data.title}</b><br><small>${authorHTML}</small></div>`;
+                div.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:10px"><b>${data.title}</b><br><small style="color:#aaa">${data.author}${badge}</small></div>`;
                 div.onclick = () => location.href = `video.html?id=${d.id}`;
                 document.getElementById('videoList').appendChild(div);
             }
         }
     }
+    let c = 0; document.getElementById('mainLogo').onclick = () => { c++; if(c==5) location.href="admin.html"; setTimeout(()=>c=0,2000); };
     load();
 </script>
 </body>
