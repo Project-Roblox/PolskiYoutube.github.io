@@ -18,8 +18,12 @@
         .short-card { width: 160px; flex-shrink: 0; }
         .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 320px; }
+        .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; }
         input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+        #chatDisplay { height: 200px; overflow-y: auto; background: #111; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+        .msg { margin-bottom: 8px; padding: 5px; border-radius: 5px; }
+        .msg-admin { background: #3ea6ff; color: black; align-self: flex-start; }
+        .msg-user { background: #444; color: white; text-align: right; }
     </style>
 </head>
 <body>
@@ -37,88 +41,98 @@
     <div id="videoList" class="grid"></div>
 </div>
 
-<div id="authModal" class="modal">
-    <div class="modal-content">
-        <h2 id="authTitle">Logowanie</h2>
-        <input type="email" id="emailInp" placeholder="E-mail">
-        <input type="password" id="passInp" placeholder="Hasło">
-        <button class="btn btn-blue" style="width:100%" id="authSubmit">DALEJ</button>
-        <p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center; font-size:14px; margin-top:20px;">Zmień tryb: Logowanie/Rejestracja</p>
-    </div>
-</div>
-
-<div id="addModal" class="modal">
-    <div class="modal-content">
-        <h2>Dodaj film</h2>
-        <input type="text" id="vTitle" placeholder="Tytuł">
-        <input type="text" id="vUrl" placeholder="Link .mp4">
-        <select id="vType">
-            <option value="video">Film (poziomy)</option>
-            <option value="short">Shorts (pionowy)</option>
-        </select>
-        <button class="btn btn-blue" style="width:100%" id="uploadSubmit">OPUBLIKUJ</button>
-    </div>
-</div>
-
 <div id="supportModal" class="modal">
     <div class="modal-content">
-        <h2>Kontakt z mikih9a</h2>
-        <textarea id="supportMsg" placeholder="W czym możemy pomóc?"></textarea>
+        <h3>Support: mikih9a</h3>
+        <div id="chatDisplay">Wczytywanie rozmowy...</div>
+        <input type="text" id="supportMsg" placeholder="Napisz wiadomość...">
         <button class="btn btn-blue" style="width:100%" id="sendSupport">WYŚLIJ</button>
+        <button onclick="document.getElementById('supportModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:10px; cursor:pointer;">Zamknij</button>
     </div>
 </div>
+
+<div id="authModal" class="modal"><div class="modal-content"><h2 id="authTitle">Logowanie</h2><input type="email" id="emailInp" placeholder="E-mail"><input type="password" id="passInp" placeholder="Hasło"><button class="btn btn-blue" style="width:100%" id="authSubmit">DALEJ</button><p id="toggleAuth" style="color:#3ea6ff; cursor:pointer; text-align:center;">Zmień tryb</p></div></div>
+<div id="addModal" class="modal"><div class="modal-content"><h2>Dodaj film</h2><input type="text" id="vTitle" placeholder="Tytuł"><input type="text" id="vUrl" placeholder="Link .mp4"><select id="vType"><option value="video">Film</option><option value="short">Shorts</option></select><button class="btn btn-blue" style="width:100%" id="uploadSubmit">OPUBLIKUJ</button></div></div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, query, orderBy, serverTimestamp, where, onSnapshot, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-        authDomain: "polski-youtub2.firebaseapp.com",
-        projectId: "polski-youtub2",
-        storageBucket: "polski-youtub2.firebasestorage.app",
-        messagingSenderId: "325129789226",
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-        measurementId: "G-B5M3F5J713"
-    };
-
+    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", measurementId: "G-B5M3F5J713" };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // NAWIGACJA
     onAuthStateChanged(auth, user => {
         const nav = document.getElementById('navRight');
         if (user) {
-            nav.innerHTML = `
-                <button onclick="document.getElementById('supportModal').style.display='flex'" class="btn" style="background:#444;color:white">KONTAKT</button>
-                <button id="profileBtn" class="btn" style="background:#333; color:white">PROFIL</button>
-                <button id="addBtn" class="btn btn-blue">DODAJ</button>
-                <button id="logoutBtn" class="btn" style="background:none; color:gray; font-size:12px">Wyloguj</button>`;
-            document.getElementById('profileBtn').onclick = () => location.href = `profile.html?u=${user.email}`;
-            document.getElementById('addBtn').onclick = () => document.getElementById('addModal').style.display='flex';
-            document.getElementById('logoutBtn').onclick = () => signOut(auth);
+            nav.innerHTML = `<button id="openSup" class="btn" style="background:#444;color:white">SUPPORT</button><button id="prof" class="btn" style="background:#333;color:white">PROFIL</button><button id="add" class="btn btn-blue">DODAJ</button><button id="out" class="btn" style="color:gray;background:none">Wyloguj</button>`;
+            document.getElementById('openSup').onclick = () => { document.getElementById('supportModal').style.display='flex'; loadChat(user.email); };
+            document.getElementById('prof').onclick = () => location.href = `profile.html?u=${user.email}`;
+            document.getElementById('add').onclick = () => document.getElementById('addModal').style.display='flex';
+            document.getElementById('out').onclick = () => signOut(auth);
         } else {
-            nav.innerHTML = `<button id="loginBtn" class="btn btn-blue">ZALOGUJ</button>`;
-            document.getElementById('loginBtn').onclick = () => document.getElementById('authModal').style.display='flex';
+            nav.innerHTML = `<button onclick="document.getElementById('authModal').style.display='flex'" class="btn btn-blue">ZALOGUJ</button>`;
         }
     });
 
-    // LOGIKA SUPPORTU
+    // CZAT SUPPORTU (DWUSTRONNY)
+    async function loadChat(email) {
+        const q = query(collection(db, "support"), where("userEmail", "==", email));
+        onSnapshot(q, (snap) => {
+            const display = document.getElementById('chatDisplay');
+            display.innerHTML = "";
+            if(snap.empty) display.innerHTML = "Brak wiadomości. Napisz pierwszy!";
+            snap.forEach(d => {
+                d.data().messages.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = `msg ${m.sender === 'mikih9a@gmail.com' ? 'msg-admin' : 'msg-user'}`;
+                    div.innerHTML = `<b>${m.sender === 'mikih9a@gmail.com' ? 'ADMIN' : 'Ty'}:</b> ${m.text}`;
+                    display.appendChild(div);
+                });
+                display.scrollTop = display.scrollHeight;
+                window.currentChatId = d.id;
+            });
+        });
+    }
+
     document.getElementById('sendSupport').onclick = async () => {
         const txt = document.getElementById('supportMsg').value;
-        if(!txt || !auth.currentUser) return alert("Zaloguj się i wpisz wiadomość!");
-        await addDoc(collection(db, "support"), { userEmail: auth.currentUser.email, messages: [{sender: auth.currentUser.email, text: txt}], createdAt: serverTimestamp() });
-        alert("Wysłano! Admin odpowie wkrótce.");
-        document.getElementById('supportModal').style.display='none';
+        if(!txt) return;
+        const user = auth.currentUser.email;
+        if(window.currentChatId) {
+            await updateDoc(doc(db, "support", window.currentChatId), { messages: arrayUnion({sender: user, text: txt}) });
+        } else {
+            await addDoc(collection(db, "support"), { userEmail: user, messages: [{sender: user, text: txt}], createdAt: serverTimestamp() });
+        }
+        document.getElementById('supportMsg').value = "";
     };
 
-    // LOGOWANIE/DODAWANIE/ŁADOWANIE
+    // ŁADOWANIE FILMÓW (NAPRAWIONE)
+    async function load() {
+        const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
+        const vList = document.getElementById('videoList');
+        const sList = document.getElementById('shortsList');
+        snap.forEach(async (d) => {
+            const data = d.data();
+            const uSnap = await getDoc(doc(db, "users", data.author));
+            const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span style="color:#3ea6ff">✔️</span>' : '';
+            const card = document.createElement('div');
+            card.onclick = () => location.href = `video.html?id=${d.id}`;
+            card.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}${badge}</small></div>`;
+            if(data.type === 'short') { card.className = 'short-card'; sList.appendChild(card); }
+            else { card.className = 'v-card'; vList.appendChild(card); }
+        });
+    }
+    load();
+
+    // LOGOWANIE I ADMIN LINK (5 KLIKNIĘĆ W LOGO)
     let isReg = false;
     document.getElementById('toggleAuth').onclick = () => { isReg = !isReg; document.getElementById('authTitle').innerText = isReg ? "Rejestracja" : "Logowanie"; };
     document.getElementById('authSubmit').onclick = async () => {
-        const e = document.getElementById('emailInp').value;
-        const p = document.getElementById('passInp').value;
+        const e = document.getElementById('emailInp').value; const p = document.getElementById('passInp').value;
         try { if(isReg) await createUserWithEmailAndPassword(auth, e, p); else await signInWithEmailAndPassword(auth, e, p); location.reload(); } catch(err) { alert(err.message); }
     };
     document.getElementById('uploadSubmit').onclick = async () => {
@@ -126,21 +140,6 @@
         await addDoc(collection(db, "content"), { title: t, url: u, type: type, author: auth.currentUser.email, likes: 0, views: 0, shares: 0, likedBy: [], createdAt: serverTimestamp() });
         location.reload();
     };
-
-    async function load() {
-        const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
-        for (const d of snap.docs) {
-            const data = d.data();
-            const uSnap = await getDoc(doc(db, "users", data.author));
-            const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span style="color:#3ea6ff">✔️</span>' : '';
-            const card = document.createElement('div');
-            card.onclick = () => location.href = `video.html?id=${d.id}`;
-            card.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}${badge}</small></div>`;
-            if(data.type === 'short') { card.className = 'short-card'; document.getElementById('shortsList').appendChild(card); }
-            else { div.className = 'v-card'; document.getElementById('videoList').appendChild(card); }
-        }
-    }
-    load();
     let cl = 0; document.getElementById('mainLogo').onclick = () => { cl++; if(cl==5) location.href="admin.html"; setTimeout(()=>cl=0,2000); };
 </script>
 </body>
