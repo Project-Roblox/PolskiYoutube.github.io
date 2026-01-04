@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Polski YouTube - Weryfikacja Konta</title>
+    <title>Polski YouTube - Naprawiony</title>
     <style>
         body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
         header { height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; background: #0f0f0f; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1000; }
@@ -19,17 +19,20 @@
         .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #282828; padding: 30px; border-radius: 15px; width: 350px; text-align: center; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #121212; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
         #chatDisplay { height: 250px; overflow-y: auto; background: #111; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-direction: column; }
         .msg { margin-bottom: 8px; padding: 8px 12px; border-radius: 12px; max-width: 80%; font-size: 14px; }
         .msg-admin { background: #3ea6ff; color: black; align-self: flex-start; }
         .msg-user { background: #444; color: white; align-self: flex-end; }
-        .verify-banner { background: #ffcc00; color: black; padding: 10px; text-align: center; font-weight: bold; display: none; }
+        .verify-banner { background: #ffcc00; color: black; padding: 12px; text-align: center; font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
-<div id="verifyBanner" class="verify-banner">Twoje konto nie jest zweryfikowane! Sprawdź e-mail i kliknij link, aby móc dodawać filmy i pisać na support.</div>
+<div id="verifyBanner" class="verify-banner">
+    Twoje konto nie jest zweryfikowane! Sprawdź e-mail. 
+    <button onclick="location.reload()" style="padding:4px 10px; cursor:pointer;">ODŚWIEŻ STATUS</button>
+</div>
 
 <header>
     <div class="logo" id="mainLogo"><span>PL</span> YouTube</div>
@@ -54,8 +57,30 @@
     </div>
 </div>
 
-<div id="addModal" class="modal"><div class="modal-content"><h2>Dodaj film</h2><input type="text" id="vTitle" placeholder="Tytuł"><input type="text" id="vUrl" placeholder="Link .mp4"><select id="vType"><option value="video">Film</option><option value="short">Shorts</option></select><button class="btn btn-blue" style="width:100%" id="uploadSubmit">OPUBLIKUJ</button></div></div>
-<div id="supportModal" class="modal"><div class="modal-content"><h3>Support: mikih9a</h3><div id="chatDisplay"></div><div style="display:flex;gap:5px;"><input type="text" id="supportMsg" placeholder="Napisz..."><button class="btn btn-blue" id="sendSupport">></button></div><button onclick="document.getElementById('supportModal').style.display='none'" style="background:none;border:none;color:gray;width:100%;margin-top:10px;cursor:pointer;">Zamknij</button></div></div>
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <h2>Dodaj film</h2>
+        <input type="text" id="vTitle" placeholder="Tytuł">
+        <input type="text" id="vUrl" placeholder="Link .mp4 (bezpośredni)">
+        <select id="vType">
+            <option value="video">Film (16:9)</option>
+            <option value="short">Shorts (9:16)</option>
+        </select>
+        <button class="btn btn-blue" style="width:100%" id="uploadSubmit">OPUBLIKUJ</button>
+    </div>
+</div>
+
+<div id="supportModal" class="modal">
+    <div class="modal-content">
+        <h3>Support: mikih9a</h3>
+        <div id="chatDisplay"></div>
+        <div style="display:flex;gap:5px;">
+            <input type="text" id="supportMsg" placeholder="Napisz wiadomość...">
+            <button class="btn btn-blue" id="sendSupport">></button>
+        </div>
+        <button onclick="document.getElementById('supportModal').style.display='none'" style="background:none; border:none; color:gray; width:100%; margin-top:10px; cursor:pointer;">Zamknij</button>
+    </div>
+</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -74,7 +99,7 @@
         document.getElementById('toggleAuth').innerText = isReg ? "Masz konto? Zaloguj się" : "Nie masz konta? Zarejestruj się";
     };
 
-    // LOGOWANIE / REJESTRACJA
+    // LOGOWANIE I REJESTRACJA
     document.getElementById('authSubmit').onclick = async () => {
         const e = document.getElementById('emailInp').value;
         const p = document.getElementById('passInp').value;
@@ -82,41 +107,70 @@
             if(isReg) {
                 const cred = await createUserWithEmailAndPassword(auth, e, p);
                 await sendEmailVerification(cred.user);
-                alert("Konto założone! Wysłaliśmy link weryfikacyjny na e-mail.");
+                alert("Wysłaliśmy link weryfikacyjny! Sprawdź pocztę przed zalogowaniem.");
             } else {
                 await signInWithEmailAndPassword(auth, e, p);
             }
             location.reload();
-        } catch(err) { alert(err.message); }
+        } catch(err) { alert("Błąd: " + err.message); }
     };
 
-    onAuthStateChanged(auth, user => {
+    // STATUS UŻYTKOWNIKA I PRZYCISKI
+    onAuthStateChanged(auth, async (user) => {
         const nav = document.getElementById('navRight');
         const banner = document.getElementById('verifyBanner');
+        
         if (user) {
+            await user.reload(); // Ważne: pobiera aktualny status weryfikacji z serwera
             if(!user.emailVerified) banner.style.display = 'block';
-            
+
             nav.innerHTML = `
                 <button id="openSup" class="btn" style="background:#444;color:white">SUPPORT</button>
-                <button id="prof" class="btn" style="background:#333;color:white">PROFIL</button>
-                <button id="add" class="btn btn-blue">DODAJ</button>
-                <button onclick="auth.signOut().then(()=>location.reload())" class="btn" style="color:gray;background:none;font-size:10px">Wyloguj</button>`;
+                <button id="profBtn" class="btn" style="background:#333;color:white">PROFIL</button>
+                <button id="addBtn" class="btn btn-blue">DODAJ</button>
+                <button id="logoutBtn" class="btn" style="color:gray;background:none;font-size:12px">Wyloguj</button>`;
             
+            // PODPIĘCIE DZIAŁANIA PRZYCISKÓW
+            document.getElementById('logoutBtn').onclick = () => signOut(auth).then(() => location.reload());
+            document.getElementById('profBtn').onclick = () => location.href = `profile.html?u=${user.email}`;
+            document.getElementById('addBtn').onclick = () => {
+                if(!user.emailVerified) return alert("Musisz zweryfikować e-mail!");
+                document.getElementById('addModal').style.display='flex';
+            };
             document.getElementById('openSup').onclick = () => {
-                if(!user.emailVerified) return alert("Najpierw zweryfikuj e-mail!");
+                if(!user.emailVerified) return alert("Zweryfikuj e-mail, aby pisać na support!");
                 document.getElementById('supportModal').style.display='flex';
                 loadChat(user.email);
             };
-            document.getElementById('add').onclick = () => {
-                if(!user.emailVerified) return alert("Musisz zweryfikować e-mail, aby dodawać filmy!");
-                document.getElementById('addModal').style.display='flex';
-            };
         } else {
+            banner.style.display = 'none';
             nav.innerHTML = `<button onclick="document.getElementById('authModal').style.display='flex'" class="btn btn-blue">ZALOGUJ</button>`;
         }
     });
 
-    // --- SYSTEM CZATU I FILMÓW ---
+    // ŁADOWANIE FILMÓW
+    async function load() {
+        const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
+        const vList = document.getElementById('videoList');
+        const sList = document.getElementById('shortsList');
+        vList.innerHTML = ""; sList.innerHTML = "";
+        
+        for (const d of snap.docs) {
+            const data = d.data();
+            const uSnap = await getDoc(doc(db, "users", data.author));
+            const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span style="color:#3ea6ff">✔️</span>' : '';
+            
+            const card = document.createElement('div');
+            card.onclick = () => location.href = `video.html?id=${d.id}`;
+            card.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}${badge}</small></div>`;
+            
+            if(data.type === 'short') { card.className = 'short-card'; sList.appendChild(card); }
+            else { card.className = 'v-card'; vList.appendChild(card); }
+        }
+    }
+    load();
+
+    // CZAT I DODAWANIE
     async function loadChat(email) {
         const q = query(collection(db, "support"), where("userEmail", "==", email));
         onSnapshot(q, (snap) => {
@@ -137,31 +191,20 @@
 
     document.getElementById('sendSupport').onclick = async () => {
         const txt = document.getElementById('supportMsg').value;
-        if(!txt || !auth.currentUser) return;
+        if(!txt || !window.currentChatId) return;
         await updateDoc(doc(db, "support", window.currentChatId), { messages: arrayUnion({sender: auth.currentUser.email, text: txt}) });
         document.getElementById('supportMsg').value = "";
     };
 
-    async function load() {
-        const snap = await getDocs(query(collection(db, "content"), orderBy("createdAt", "desc")));
-        const vList = document.getElementById('videoList');
-        const sList = document.getElementById('shortsList');
-        snap.forEach(async (d) => {
-            const data = d.data();
-            const card = document.createElement('div');
-            card.onclick = () => location.href = `video.html?id=${d.id}`;
-            card.innerHTML = `<video src="${data.url}#t=0.1"></video><div style="padding:8px"><b>${data.title}</b><br><small>${data.author}</small></div>`;
-            if(data.type === 'short') { card.className = 'short-card'; sList.appendChild(card); }
-            else { card.className = 'v-card'; vList.appendChild(card); }
-        });
-    }
-    load();
-
     document.getElementById('uploadSubmit').onclick = async () => {
-        const t = document.getElementById('vTitle').value; const u = document.getElementById('vUrl').value; const type = document.getElementById('vType').value;
+        const t = document.getElementById('vTitle').value;
+        const u = document.getElementById('vUrl').value;
+        const type = document.getElementById('vType').value;
+        if(!t || !u) return alert("Wypełnij pola!");
         await addDoc(collection(db, "content"), { title: t, url: u, type: type, author: auth.currentUser.email, likes: 0, views: 0, shares: 0, likedBy: [], createdAt: serverTimestamp() });
         location.reload();
     };
+
     let cl = 0; document.getElementById('mainLogo').onclick = () => { cl++; if(cl==5) location.href="admin.html"; setTimeout(()=>cl=0,2000); };
 </script>
 </body>
