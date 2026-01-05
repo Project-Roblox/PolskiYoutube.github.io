@@ -2,89 +2,104 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Profil - Polski YouTube</title>
+    <title>Mój Profil</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; margin: 0; }
-        .header { padding: 40px 20px; background: #1a1a1a; text-align: center; border-bottom: 1px solid #333; }
-        .container { max-width: 1200px; margin: auto; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 40px; }
-        .v-card { cursor: pointer; background: #111; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
-        .v-card video { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
-        .short-card { cursor: pointer; background: #111; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
-        .short-card video { width: 100%; aspect-ratio: 9/16; object-fit: cover; }
-        .badge { color: #3ea6ff; font-weight: bold; }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .upload-box { background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; margin-bottom: 30px; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0; background: #121212; border: 1px solid #444; color: white; box-sizing: border-box; }
+        .btn { padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-blue { background: #3ea6ff; color: black; }
+        .video-list { display: grid; gap: 10px; }
+        .video-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 id="userTitle">Profil użytkownika</h1>
-    <button onclick="location.href='index.html'" style="background:#333; color:white; border:none; padding:10px 20px; border-radius:20px; cursor:pointer;">← Powrót</button>
-</div>
-
 <div class="container">
-    <h3 id="vCount">🎥 Filmy (0)</h3>
-    <div id="videoGrid" class="grid"></div>
+    <button onclick="location.href='index.html'" style="background:none; color:gray; border:none; cursor:pointer;">&larr; Wróć do serwisu</button>
+    
+    <h1>Panel Twórcy</h1>
+    <h3 id="userEmail">Ładowanie...</h3>
 
-    <h3 id="sCount">📱 Shortsy (0)</h3>
-    <div id="shortsGrid" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));"></div>
+    <div class="upload-box">
+        <h2>📤 Dodaj Film</h2>
+        <input type="text" id="vTitle" placeholder="Tytuł filmu">
+        <input type="text" id="vUrl" placeholder="Link bezpośredni (.mp4)">
+        <select id="vType">
+            <option value="video">Zwykły Film (16:9)</option>
+            <option value="short">Shorts (9:16)</option>
+        </select>
+        <button class="btn btn-blue" id="addBtn">OPUBLIKUJ</button>
+    </div>
+
+    <h2>Twoje Materiały</h2>
+    <div id="myVideos" class="video-list"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM",
-        authDomain: "polski-youtub2.firebaseapp.com",
-        projectId: "polski-youtub2",
-        storageBucket: "polski-youtub2.firebasestorage.app",
-        messagingSenderId: "325129789226",
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853",
-        measurementId: "G-B5M3F5J713"
-    };
-
+    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", measurementId: "G-B5M3F5J713" };
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const params = new URLSearchParams(location.search);
-    const userEmail = params.get('u');
+    onAuthStateChanged(auth, async (user) => {
+        if(!user) return location.href = "index.html";
+        document.getElementById('userEmail').innerText = user.email + (user.emailVerified ? " (Zweryfikowany)" : " (Niezweryfikowany)");
 
-    async function loadProfile() {
-        if(!userEmail) return;
-        
-        // Sprawdź weryfikację dla nagłówka
-        const uSnap = await getDoc(doc(db, "users", userEmail));
-        const badge = (uSnap.exists() && uSnap.data().verified) ? ' <span class="badge">✔️</span>' : '';
-        document.getElementById('userTitle').innerHTML = userEmail + badge;
+        // 1. Dodawanie
+        document.getElementById('addBtn').onclick = async () => {
+            if(!user.emailVerified) return alert("Potwierdź e-mail, aby dodawać filmy!");
+            const t = document.getElementById('vTitle').value;
+            const u = document.getElementById('vUrl').value;
+            const type = document.getElementById('vType').value;
+            
+            if(t && u) {
+                await addDoc(collection(db, "content"), {
+                    title: t, url: u, type: type, author: user.email, 
+                    createdAt: serverTimestamp(), views: 0
+                });
+                alert("Dodano!");
+                loadMyVideos(user.email); // Odśwież listę
+            }
+        };
 
-        const q = query(collection(db, "content"), where("author", "==", userEmail));
+        // 2. Ładowanie listy
+        loadMyVideos(user.email);
+    });
+
+    async function loadMyVideos(email) {
+        const list = document.getElementById('myVideos');
+        list.innerHTML = "Ładowanie...";
+        const q = query(collection(db, "content"), where("author", "==", email));
         const snap = await getDocs(q);
         
-        let vNum = 0, sNum = 0;
+        list.innerHTML = "";
+        if(snap.empty) list.innerHTML = "Nie dodałeś jeszcze żadnych filmów.";
 
         snap.forEach(d => {
             const data = d.data();
             const div = document.createElement('div');
-            div.onclick = () => location.href = `video.html?id=${d.id}`;
-            div.innerHTML = `<video src="${data.url}#t=0.1"></video><p style="padding:10px; margin:0; font-size:13px;">${data.title}</p>`;
-
-            if(data.type === 'short') {
-                div.className = 'short-card';
-                document.getElementById('shortsGrid').appendChild(div);
-                sNum++;
-            } else {
-                div.className = 'v-card';
-                document.getElementById('videoGrid').appendChild(div);
-                vNum++;
-            }
+            div.className = 'video-item';
+            div.innerHTML = `
+                <span><b>${data.title}</b> (${data.type})</span>
+                <button onclick="deleteVideo('${d.id}')" style="background:#ff4444; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:4px;">USUŃ</button>
+            `;
+            list.appendChild(div);
         });
-
-        document.getElementById('vCount').innerText = `🎥 Filmy (${vNum})`;
-        document.getElementById('sCount').innerText = `📱 Shortsy (${sNum})`;
     }
 
-    loadProfile();
+    // 3. Usuwanie
+    window.deleteVideo = async (id) => {
+        if(confirm("Na pewno usunąć ten film?")) {
+            await deleteDoc(doc(db, "content", id));
+            location.reload();
+        }
+    };
 </script>
 </body>
 </html>
