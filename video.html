@@ -69,6 +69,31 @@
         alert("Link skopiowany!");
     };
     load();
+
+
+import { doc, setDoc, arrayUnion, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Funkcja zapisująca historię
+async function addToHistory(videoData, videoId) {
+    const user = auth.currentUser;
+    if(user && videoData) {
+        const historyItem = {
+            id: videoId,
+            title: videoData.title,
+            url: videoData.url,
+            watchedAt: new Date() // Tymczasowo JS Date, Firebase zamieni to przy zapisie
+        };
+
+        // Używamy setDoc z {merge: true}, żeby utworzyć dokument usera jeśli nie istnieje
+        await setDoc(doc(db, "users", user.email), {
+            history: arrayUnion(historyItem)
+        }, { merge: true });
+        
+        console.log("Dodano do historii");
+    }
+}
+
+
 </script>
 </body>
 </html>
