@@ -2,104 +2,77 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Mój Profil</title>
+    <title>Profil</title>
     <style>
-        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 20px; }
-        .container { max-width: 800px; margin: auto; }
-        .upload-box { background: #1a1a1a; padding: 20px; border-radius: 10px; border: 1px solid #333; margin-bottom: 30px; }
-        input, select { width: 100%; padding: 10px; margin: 5px 0; background: #121212; border: 1px solid #444; color: white; box-sizing: border-box; }
-        .btn { padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-blue { background: #3ea6ff; color: black; }
-        .video-list { display: grid; gap: 10px; }
-        .video-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; border-radius: 5px; }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; padding: 40px; }
+        .container { max-width: 900px; margin: auto; }
+        .upload { background: #1a1a1a; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0; background: #000; color: white; border: 1px solid #333; }
+        .v-item { display: flex; justify-content: space-between; background: #111; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+        .badge { width: 20px; vertical-align: middle; }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <button onclick="location.href='index.html'" style="background:none; color:gray; border:none; cursor:pointer;">&larr; Wróć do serwisu</button>
+    <button onclick="location.href='index.html'" style="color:gray; background:none; border:none; cursor:pointer;">&larr; Powrót</button>
+    <h1>Profil: <span id="uName">...</span> <span id="vBadge"></span></h1>
     
-    <h1>Panel Twórcy</h1>
-    <h3 id="userEmail">Ładowanie...</h3>
-
-    <div class="upload-box">
-        <h2>📤 Dodaj Film</h2>
-        <input type="text" id="vTitle" placeholder="Tytuł filmu">
-        <input type="text" id="vUrl" placeholder="Link bezpośredni (.mp4)">
-        <select id="vType">
-            <option value="video">Zwykły Film (16:9)</option>
-            <option value="short">Shorts (9:16)</option>
-        </select>
-        <button class="btn btn-blue" id="addBtn">OPUBLIKUJ</button>
+    <div class="upload" id="uploadBox">
+        <h3>Dodaj nowy film</h3>
+        <input type="text" id="t" placeholder="Tytuł">
+        <input type="text" id="u" placeholder="Link .mp4">
+        <select id="type"><option value="video">Film</option><option value="short">Shorts</option></select>
+        <button id="addBtn" style="width:100%; padding:10px; background:red; color:white; border:none; cursor:pointer;">OPUBLIKUJ</button>
     </div>
 
-    <h2>Twoje Materiały</h2>
-    <div id="myVideos" class="video-list"></div>
+    <h3>Twoje filmy</h3>
+    <div id="myList"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", measurementId: "G-B5M3F5J713" };
+    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853" };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const V_IMG = "https://th.bing.com/th/id/R.503a526f8f8634741fb17f6c9d4d703e?rik=0GG6forTzHaljQ&pid=ImgRaw&r=0";
 
-    onAuthStateChanged(auth, async (user) => {
-        if(!user) return location.href = "index.html";
-        document.getElementById('userEmail').innerText = user.email + (user.emailVerified ? " (Zweryfikowany)" : " (Niezweryfikowany)");
-
-        // 1. Dodawanie
-        document.getElementById('addBtn').onclick = async () => {
-            if(!user.emailVerified) return alert("Potwierdź e-mail, aby dodawać filmy!");
-            const t = document.getElementById('vTitle').value;
-            const u = document.getElementById('vUrl').value;
-            const type = document.getElementById('vType').value;
-            
-            if(t && u) {
-                await addDoc(collection(db, "content"), {
-                    title: t, url: u, type: type, author: user.email, 
-                    createdAt: serverTimestamp(), views: 0
-                });
-                alert("Dodano!");
-                loadMyVideos(user.email); // Odśwież listę
-            }
-        };
-
-        // 2. Ładowanie listy
-        loadMyVideos(user.email);
+    onAuthStateChanged(auth, async user => {
+        if(!user) return location.href='login.html';
+        document.getElementById('uName').innerText = user.email;
+        
+        const uSnap = await getDoc(doc(db, "users", user.email));
+        if(uSnap.exists() && uSnap.data().verified) {
+            document.getElementById('vBadge').innerHTML = `<img src="${V_IMG}" class="badge">`;
+        }
+        loadMyVids(user.email);
     });
 
-    async function loadMyVideos(email) {
-        const list = document.getElementById('myVideos');
-        list.innerHTML = "Ładowanie...";
+    window.loadMyVids = async (email) => {
         const q = query(collection(db, "content"), where("author", "==", email));
         const snap = await getDocs(q);
-        
+        const list = document.getElementById('myList');
         list.innerHTML = "";
-        if(snap.empty) list.innerHTML = "Nie dodałeś jeszcze żadnych filmów.";
-
         snap.forEach(d => {
-            const data = d.data();
-            const div = document.createElement('div');
-            div.className = 'video-item';
-            div.innerHTML = `
-                <span><b>${data.title}</b> (${data.type})</span>
-                <button onclick="deleteVideo('${d.id}')" style="background:#ff4444; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:4px;">USUŃ</button>
-            `;
-            list.appendChild(div);
+            const v = d.data();
+            list.innerHTML += `<div class="v-item"><span>${v.title}</span> <button onclick="del('${d.id}')" style="color:red; background:none; border:none; cursor:pointer;">USUŃ</button></div>`;
         });
-    }
-
-    // 3. Usuwanie
-    window.deleteVideo = async (id) => {
-        if(confirm("Na pewno usunąć ten film?")) {
-            await deleteDoc(doc(db, "content", id));
-            location.reload();
-        }
     };
+
+    document.getElementById('addBtn').onclick = async () => {
+        const title = document.getElementById('t').value;
+        const url = document.getElementById('u').value;
+        const type = document.getElementById('type').value;
+        await addDoc(collection(db, "content"), {
+            title, url, type, author: auth.currentUser.email, createdAt: serverTimestamp()
+        });
+        alert("Dodano!"); location.reload();
+    };
+
+    window.del = async (id) => { if(confirm("Usunąć?")) { await deleteDoc(doc(db, "content", id)); location.reload(); } };
 </script>
 </body>
 </html>
