@@ -2,153 +2,60 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Panel Admina - Projekt polski YT</title>
+    <title>Admin - Zarządzanie</title>
     <style>
         body { background: #000; color: white; font-family: sans-serif; display: flex; margin: 0; }
         .sidebar { width: 220px; background: #111; height: 100vh; padding: 20px; border-right: 1px solid #333; position: fixed; }
         .main { margin-left: 260px; padding: 20px; flex: 1; }
         .card { background: #1a1a1a; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
-        .btn { padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-right: 5px; }
-        .btn-blue { background: #3ea6ff; color: black; }
-        .btn-red { background: #ff4444; color: white; }
-        input { background: #222; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; margin: 5px 0; }
-        .chat-box { background: #000; height: 180px; overflow-y: auto; padding: 10px; border: 1px solid #333; margin-bottom: 10px; display: flex; flex-direction: column; }
+        .btn { padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-v { background: #00ff00; color: black; }
+        .btn-del { background: #ff4444; color: white; }
+        .badge { width: 15px; vertical-align: middle; }
     </style>
 </head>
 <body>
-
 <div class="sidebar">
-    <h2>Admin mikih9a</h2>
-    <button onclick="loadSection('vids')" style="width:100%; margin-bottom:10px; height:40px; cursor:pointer;">🎬 FILMY</button>
-    <button onclick="loadSection('chats')" style="width:100%; height:40px; cursor:pointer;">💬 SUPPORT</button>
-    <button onclick="location.href='index.html'" style="width:100%; margin-top:20px; height:30px; background:none; color:gray; border:1px solid #333; cursor:pointer;">Wróć do YouTube</button>
+    <h2>Panel Admina</h2>
+    <button onclick="loadUsers()" style="width:100%; height:40px; cursor:pointer; margin-bottom:10px;">👥 UŻYTKOWNICY</button>
+    <button onclick="location.href='index.html'" style="width:100%; height:40px; cursor:pointer;">🏠 POWRÓT</button>
 </div>
-
-<div class="main" id="adminMain">Wybierz sekcję z lewej strony.</div>
+<div class="main" id="adminMain">Witaj w panelu. Wybierz opcję z lewej.</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, arrayUnion, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = { 
-        apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", 
-        authDomain: "polski-youtub2.firebaseapp.com", 
-        projectId: "polski-youtub2", 
-        storageBucket: "polski-youtub2.firebasestorage.app", 
-        messagingSenderId: "325129789226", 
-        appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853", 
-        measurementId: "G-B5M3F5J713" 
-    };
-
+    const firebaseConfig = { apiKey: "AIzaSyCpp-nUIT7bHmtO8qJI3-Q89biIpsnIBzM", authDomain: "polski-youtub2.firebaseapp.com", projectId: "polski-youtub2", storageBucket: "polski-youtub2.firebasestorage.app", messagingSenderId: "325129789226", appId: "1:325129789226:web:f68f2f1a1f8f9feaf14853" };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const V_IMG = "https://th.bing.com/th/id/R.503a526f8f8634741fb17f6c9d4d703e?rik=0GG6forTzHaljQ&pid=ImgRaw&r=0";
 
-    // Sekcje panelu
-    window.loadSection = async (section) => {
+    window.loadUsers = async () => {
         const main = document.getElementById('adminMain');
-        main.innerHTML = "Wczytywanie...";
-
-        if(section === 'vids') {
-            try {
-                const snap = await getDocs(collection(db, "content"));
-                main.innerHTML = "<h2>Zarządzanie Filmami</h2>";
-                if(snap.empty) main.innerHTML += "<p>Brak filmów w bazie.</p>";
-                
-                snap.forEach(d => {
-                    const data = d.data();
-                    const div = document.createElement('div');
-                    div.className = 'card';
-                    div.innerHTML = `
-                        <div style="display:flex; justify-content:space-between;">
-                            <b>${data.title}</b>
-                            <span style="font-size:12px; color:gray;">ID: ${d.id}</span>
-                        </div>
-                        <p style="font-size:13px; color:#aaa;">Autor: ${data.author}</p>
-                        <div style="margin-top:10px;">
-                            Wyśw: <input type="number" id="v-${d.id}" value="${data.views || 0}" style="width:60px;">
-                            Lajki: <input type="number" id="l-${d.id}" value="${data.likes || 0}" style="width:60px;">
-                            <button class="btn btn-blue" onclick="saveStats('${d.id}')">Zapisz</button>
-                            <button class="btn btn-red" onclick="delVid('${d.id}')">USUŃ FILM</button>
-                            <button class="btn" onclick="verify('${data.author}')" style="background:#333; color:white;">Zweryfikuj autora ✔️</button>
-                        </div>
-                    `;
-                    main.appendChild(div);
-                });
-            } catch (err) {
-                main.innerHTML = "Błąd pobierania filmów: " + err.message;
-            }
-        }
-
-        if(section === 'chats') {
-            main.innerHTML = "<h2>Historia Supportu</h2>";
-            onSnapshot(collection(db, "support"), (snap) => {
-                document.querySelectorAll('.chat-card').forEach(c => c.remove());
-                snap.forEach(d => {
-                    const data = d.data();
-                    const card = document.createElement('div');
-                    card.className = 'card chat-card';
-                    const history = data.messages.map(m => `
-                        <div style="color:${m.sender === 'mikih9a@gmail.com' ? '#3ea6ff':'#ccc'}; margin-bottom:5px;">
-                            <b>${m.sender === 'mikih9a@gmail.com' ? 'TY':'USER'}:</b> ${m.text}
-                        </div>
-                    `).join('');
-                    card.innerHTML = `
-                        <b>Rozmowa z: ${data.userEmail}</b>
-                        <div class="chat-box" id="box-${d.id}">${history}</div>
-                        <input type="text" id="rep-${d.id}" style="width:70%" placeholder="Odpisz...">
-                        <button class="btn btn-blue" onclick="sendReply('${d.id}')">WYŚLIJ</button>
-                    `;
-                    main.appendChild(card);
-                    document.getElementById(`box-${d.id}`).scrollTop = 9999;
-                });
-            });
-        }
+        main.innerHTML = "Wczytywanie użytkowników...";
+        const snap = await getDocs(collection(db, "users"));
+        main.innerHTML = "<h2>Zarządzaj Weryfikacją</h2>";
+        snap.forEach(d => {
+            const u = d.data();
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <b>${d.id}</b> ${u.verified ? `<img src="${V_IMG}" class="badge">` : ''}
+                <div style="margin-top:10px">
+                    <button class="btn btn-v" onclick="toggleV('${d.id}', ${!u.verified})">
+                        ${u.verified ? 'Zabierz V' : 'Daj V'}
+                    </button>
+                </div>
+            `;
+            main.appendChild(div);
+        });
     };
 
-    // --- FUNKCJE DZIAŁANIA ---
-
-    window.delVid = async (id) => {
-        if(confirm("CZY NA PEWNO CHCESZ USUNĄĆ TEN FILM? Tej operacji nie da się cofnąć.")) {
-            try {
-                const docRef = doc(db, "content", id);
-                await deleteDoc(docRef);
-                alert("Film został usunięty pomyślnie.");
-                loadSection('vids'); // Odśwież listę
-            } catch (err) {
-                console.error("Błąd podczas usuwania:", err);
-                alert("BŁĄD: Nie masz uprawnień lub film nie istnieje. Sprawdź Security Rules w Firebase.");
-            }
-        }
-    };
-
-    window.saveStats = async (id) => {
-        const l = document.getElementById(`l-${id}`).value;
-        const v = document.getElementById(`v-${id}`).value;
-        try {
-            await updateDoc(doc(db, "content", id), { 
-                likes: parseInt(l), 
-                views: parseInt(v) 
-            });
-            alert("Statystyki zapisane!");
-        } catch (err) { alert("Błąd zapisu: " + err.message); }
-    };
-
-    window.verify = async (email) => {
-        try {
-            await setDoc(doc(db, "users", email), { verified: true }, { merge: true });
-            alert("Użytkownik " + email + " został zweryfikowany!");
-        } catch (err) { alert("Błąd weryfikacji: " + err.message); }
-    };
-
-    window.sendReply = async (id) => {
-        const txt = document.getElementById(`rep-${id}`).value;
-        if(!txt) return;
-        try {
-            await updateDoc(doc(db, "support", id), { 
-                messages: arrayUnion({sender: "mikih9a@gmail.com", text: txt}) 
-            });
-            document.getElementById(`rep-${id}`).value = "";
-        } catch (err) { alert("Błąd wysyłania: " + err.message); }
+    window.toggleV = async (email, status) => {
+        await updateDoc(doc(db, "users", email), { verified: status });
+        alert("Zmieniono status weryfikacji!");
+        loadUsers();
     };
 </script>
 </body>
